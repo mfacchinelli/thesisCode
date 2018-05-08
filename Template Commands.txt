@@ -1,0 +1,61 @@
+##########################################################################################
+### Run Example Sphere
+
+cd /Users/Michele/AE\ Software/SPARTA/examples/sphere
+mpirun -n 2 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
+
+##########################################################################################
+### Run MRO
+
+#--- CHANGE FOLDER ---#
+cd /Users/Michele/Library/Mobile\ Documents/com~apple~CloudDocs/University/Master\ Thesis/Code/SPARTA/mro/
+
+#--- RUN MRO WITH SINGLE PROCESS ---#
+/Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi < in.mro
+
+#--- RUN MRO WITH MPI FOR MULTI-PROCESS COMPUTATION ---#
+mpirun -np 2 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro
+
+#--- RUN MRO WITH MPI AND IMAGEMAGICK ---#
+mpirun --hostfile hostfile -np 4 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*
+
+#--- RUN MRO WITH MPI AND IMAGEMAGICK AND OPEN LOG ---#
+mpirun --hostfile hostfile -np 4 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*; open log.sparta -a textedit
+
+##########################################################################################
+### ImageMagick Toolkit
+
+#--- ADD PATHS TO MACOS ---#
+export MAGICK_HOME="/Users/Michele/Software/ImageMagick-7.0.7"; export PATH="$MAGICK_HOME/bin:$PATH"; export DYLD_LIBRARY_PATH="$MAGICK_HOME/lib/"
+
+#--- CONVERT SERIES OF IMAGES TO GIF ---#
+convert image.* movie.gif
+rm image.*
+
+convert figures/100/image.* movie_100.gif; convert figures/125/image.* movie_125.gif; convert figures/150/image.* movie_150.gif; convert figures/200/image.* movie_200.gif; convert figures/250/image.* movie_250.gif
+rm data/*/coeff.*
+rm figures/*/image.*
+
+##########################################################################################
+### Regular Expressions
+
+/\\SI\{(\S+)\}\{\}/
+\num{$1}
+
+/\\num\{(\S+)\} to \\SI\{(\S+)\}/
+\SIrange{$1}{$2}
+
+/\\SI\{(\S+)\}\{(\S+)\} to \\SI\{(\S+)\}\{(\S+)\}/
+\SIrange{$1}{$3}{$2}
+
+/\\num\{(\S+)\} and \\SI\{(\S+)\}/
+\SIlist{$1;$2}
+
+/\\SI\{(\S+)\}\{(\S+)\} and \\SI\{(\S+)\}\{(\S+)\}/
+\SIlist{$1;$3}{$2}
+
+/\$-\\frac\{(\d+)\}\{(\d+)\}\$/
+$-\frac{\num{$1}}{\num{$2}}$
+
+& \num{1.872e-06}
+/\& \\num\{(\S+)\}/

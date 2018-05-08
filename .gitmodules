@@ -1,0 +1,3 @@
+[submodule "Tudat"]
+	path = Tudat
+	url = https://github.com/mfacchinelli/tudatTesting
