@@ -64,8 +64,8 @@ r2sOffset = 15; % number of simulated particles per cell
 %...Simulation conditions
 simAnglesOfAttack = 0; % angles of attack for simulation
 simAltRarefied = linspace(100,150,11); % altitudes for rarefied regime simulations
-simGases = {'H','O'}; %'CO2',
-molarMasses = [44.01,1.01,16.00] * 1e-3;
+simGases = {'CO2 N2'};%{'CO2','H','O',{'CO2 N2'}};
+gasRatios = {[0.92,0.08]};%{1.0,1.0,1.0,[0.92,0.08]};
 
 %...Time settings
 simTimeStep = round(0.1*diff(MROExtent(1,:))/3500,5); % time step (1/10-th box traverse time)
@@ -107,27 +107,26 @@ streamVelocity(:,1) = - MarsCircularVelocity(simAltRarefied)';
 %...Create cell arrays of gas
 gasNamesString = cell(1,length(simGases));
 gasFractions = cell(1,length(simGases));
-numberDensity = zeros(length(simAltRarefied),length(simGases));
-real2sim = zeros(length(simAltRarefied),length(simGases));
-molecularSpeedRatio = zeros(length(simAltRarefied),length(simGases));
-MachNumber = zeros(length(simAltRarefied),length(simGases));
+molecularSpeedRatio = zeros(length(simGases),length(simAltRarefied));
+MachNumber = zeros(length(simGases),length(simAltRarefied));
 for g = 1:length(simGases)
-    gasRatios = 1.0;
     gasNamesString{g} = simGases{g};
     
-    gasFraction = sprintf('mixture %s frac %s\n',simGases{g},num2str(gasRatios,'%.2f ')');
+    splitGases = split(simGases{g});
+    gasFraction = [];
+    for i = 1:length(splitGases)
+        gasFraction = horzcat(gasFraction,...
+            sprintf('mixture %s frac %s\n',splitGases{i},num2str(gasRatios{g}(i),'%.2f ')'));
+    end
     gasFractions{g} = gasFraction(1:end-1);
     
-    %...Set ratio of real to simulated particles
-    numberDensity(:,g) = 6.0221e23 / molarMasses(g) * density;
-    
-    %...Set ratio of real to simulated particles
-    real2sim(:,g) = numberDensity(:,g) / r2sOffset * gridSpacing^3;
-    
     %...Find molecular speed ratio and Mach number
-    molecularSpeedRatio(:,g) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound.*sqrt(gamma/2);
-    MachNumber(:,g) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound;
+    molecularSpeedRatio(g,:) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound.*sqrt(gamma/2);
+    MachNumber(g,:) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound;
 end
+
+numberDensity = repmat(interpolate(altitude,simAltRarefied,MCD.numberDensity),[length(simGases),1]); % overwrite number density
+real2sim = numberDensity / r2sOffset * gridSpacing^3; % overwrite real-to-simulated-particles ratio
 
 %% Generate SPARTA Input File
 
@@ -171,8 +170,8 @@ switch lower(selection)
         for g = 1:length(simGases)
             for h = 1:length(simAltRarefied)
                 %...Add folders to list
-                dataFolder{g,h} = fullfile(OutputRepository,simGases{g},num2str(simAltRarefied(h)));
-                imageFolder{g,h} = fullfile(ImageRepository,simGases{g},num2str(simAltRarefied(h)));
+                dataFolder{g,h} = fullfile(OutputRepository,erase(simGases{g},' '),num2str(simAltRarefied(h)));
+                imageFolder{g,h} = fullfile(ImageRepository,erase(simGases{g},' '),num2str(simAltRarefied(h)));
                 
                 %...Create folder if inexistent
                 if ~exist(dataFolder{g,h},'dir'), mkdir(dataFolder{g,h}), end
@@ -205,8 +204,8 @@ switch lower(selection)
         %...Add folders to list
         for g = 1:length(simGases)
             for h = 1:length(simAltRarefied)
-                dataFolder{g,h} = fullfile(OutputRepository,simGases{g},num2str(simAltRarefied(h)));
-                imageFolder{g,h} = fullfile(ImageRepository,simGases{g},num2str(simAltRarefied(h)));
+                dataFolder{g,h} = fullfile(OutputRepository,erase(simGases{g},' '),num2str(simAltRarefied(h)));
+                imageFolder{g,h} = fullfile(ImageRepository,erase(simGases{g},' '),num2str(simAltRarefied(h)));
             end
         end
 end
@@ -277,22 +276,24 @@ dragDensity = @( d ) 1.47952 - 0.032578 * log( d );
 if showFigure
     F = figure('rend','painters','pos',figSizeSmall);
     hold on
-    plot(densityValues,cellfun(@(x)x(1),aeroCoeffRarefied(simAnglesOfAttack==0,:)),'-o','LineWidth',1.25,'MarkerSize',10)
+    for g = 1:length(simGases)
+        plot(densityValues,cellfun(@(x)x(1),aeroCoeffRarefied(g,:)),'-o','LineWidth',1.25,'MarkerSize',10)
+    end
     plot(densityValues,dragDensity(densityValues),'--','LineWidth',1.25)
     hold off
     xlabel('Density [kg m^{-3}]')
     ylabel('Drag Coefficient [-]')
     set(gca,'FontSize',15,'XScale','log')
     grid on
-    legend('Computed','Reference')
+    legend(simGases{:},'Reference')
     if saveFigure, saveas(F,['../../Report/figures/valid_gallis'],'epsc'), end
 end
 
 %...Print LaTeX table
-percentageOffset = ( cellfun(@(x)x(1),aeroCoeffRarefied(simAnglesOfAttack==0,:)) - dragDensity(densityValues) ) ./ ...
+percentageOffset = ( cellfun(@(x)x(1),aeroCoeffRarefied(g,:)) - dragDensity(densityValues) ) ./ ...
     dragDensity(densityValues) * 100;
 fprintf('\\num{%.0f} & \\num{%.1e} & %.2f & %.2f & %.1f \\\\ \n',...
-    [simAltRarefied',densityValues',cellfun(@(x)x(1),aeroCoeffRarefied(simAnglesOfAttack==0,:))',...
+    [simAltRarefied',densityValues',cellfun(@(x)x(1),aeroCoeffRarefied(g,:))',...
     dragDensity(densityValues)',percentageOffset']')
 
 %% GIF Commands

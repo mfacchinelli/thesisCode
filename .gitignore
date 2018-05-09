@@ -3,16 +3,9 @@
 /MATLAB/MCDFull/
 /MATLAB/other/
 /SPARTA/Full Results/
-/SPARTA/gallis/data/
-/SPARTA/gallis/figures/
-/SPARTA/mro/nominal/
-/SPARTA/mro/rotated/
-/SPARTA/validation/data/
-/SPARTA/validation/figures/
-/SPARTA/validation/videos/
-/SPARTA/verification/speedRatio/
-/SPARTA/verification/sphere/
 /SPARTA/gallis/
 /SPARTA/mro/
 /SPARTA/validation/
 /SPARTA/verification/
+*.m~
+/Tudat GitHub

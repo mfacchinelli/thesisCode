@@ -1,5 +1,5 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
-addpath functions other
+addpath functions tests
 
 %...Set system path
 setenv('PATH',[getenv('PATH'),':/Users/Michele/Software/ImageMagick-7.0.7/bin:/opt/local/bin:',...

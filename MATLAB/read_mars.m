@@ -1,12 +1,12 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g;
 
-%% Initial Conditions
-
-clc;
-
 %...General
 radius = 3.396e6;
 mu = 4.282e13;
+
+%% Initial Conditions
+
+clc;
 
 %...Elliptical orbit
 periapsis = 105e3+radius;
@@ -21,13 +21,25 @@ e = (apoapsis-periapsis)/(apoapsis+periapsis);
 fprintf('Semi-major axis: %f\n',a)
 fprintf('Eccentricity: %f\n',e)
 
-%% Other Conditions
+%% Hyperbolic Initial Conditions
 
 clc;
 
-%...General
-radius = 3.396e6;
-mu = 4.282e13;
+%...Hyperbolic orbit
+periapsis = 65e3+radius;
+e = 1.2;
+
+%...Print
+a = periapsis/(1-e);
+t = acos(-1/e);
+fprintf('Semi-major axis: %f\n',a)
+fprintf('Eccentricity: %f\n',e)
+fprintf('Asymptotyc True Anomaly: %f\n',rad2deg(t))
+sqrt(mu*(2/(a*(1-1.2))-1/a))
+
+%% Other Conditions
+
+clc;
 
 %...Elliptical orbit
 semiMajorAxis = 27197250;

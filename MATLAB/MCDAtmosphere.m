@@ -155,7 +155,7 @@ if genTable
     
     %...Average over time, to get tabulated atmosphere over altitude, 
     %   latitude and longitude
-%     tabularTimeAvg = TabulatedMCDAtmosphere(data_extended,'f(h,d,l)');
+    tabularTimeAvg = TabulatedMCDAtmosphere(data_extended,'f(h,d,l)');
 end
 
 %% Atmospheric Composition

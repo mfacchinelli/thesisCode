@@ -50,7 +50,7 @@ MCDData = fullfile(SPARTARepository,'MCDEnvir');
 
 %...Compute model based on MRO discretization
 [MROExtent,points,triangles,solarPanelElements] = ...
-    SPARTAModel(MRODataFile,rotateMRO,showFigure,saveFigure); % output min and max dimensions of MRO
+    SPARTAModel(MRODataFile,rotateMRO,showFigure,false); % output min and max dimensions of MRO
 
 %...Add more space in x-direction
 MROExtent(1,1) = MROExtent(1,1) - 0.5;
@@ -462,7 +462,11 @@ if showFigure
             end
             set(gca,'FontSize',15)
             grid on
-            legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
+            if i == 1
+                legend(split(num2str(simAltRarefied(2:end))),'Location','Best','Orientation','Horizontal')
+            else
+                legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
+            end
             if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{i})],'epsc'), end
         end
         
@@ -472,36 +476,37 @@ if showFigure
         plot(simAnglesOfAttack,cellfun(@(x)x(1),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
         ylabel('Drag Coefficient [-]')
         yyaxis right
-        plot(simAnglesOfAttack,cellfun(@(x)x(3),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+        plot(simAnglesOfAttack,cellfun(@(x)x(3),aeroCoeffContinuum(:,1)),styles{2},'LineWidth',1.25,'MarkerSize',10)
         ylabel('Lift Coefficient [-]')
         xlabel('Angle of Attack [deg]')
         set(gca,'FontSize',15)
         grid on
+        legend('Drag','Lift','Location','NW')
         if saveFigure, saveas(F,'../../Report/figures/aero_cont_2d','epsc'), end
     end
     
-    %...Plot aerodynamic coefficients in 3D against altitude
-    for i = 1:2:3
-        F = figure('rend','painters','pos',figSizeSmall);
-        surf(simAnglesOfAttack,simAltTotal,cellfun(@(x)x(i),aeroCoeffTotal)')
-        xlabel('Angle of Attack [deg]')
-        ylabel('Altitude [km]')
-        zlabel([labels{i},' Coefficient [-]'])
-        set(gca,'FontSize',15)
-        grid on
-        if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
-    end
-    
-    %...Plot aerodynamic coefficients in 3D against Knudsen number
-    for i = 1:2:3
-        F = figure('rend','painters','pos',figSizeSmall);
-        surf(simAnglesOfAttack,interpolate(altitude,simAltitudes,MCD.knudsenNumber),cellfun(@(x)x(i),aeroCoefficients)')
-        xlabel('Angle of Attack [deg]')
-        ylabel('Knudsen Number [-]')
-        zlabel([labels{i},' Coefficient [-]'])
-        set(gca,'FontSize',15,'YScale','log')
-        grid on
-    end
+%     %...Plot aerodynamic coefficients in 3D against altitude
+%     for i = 1:2:3
+%         F = figure('rend','painters','pos',figSizeSmall);
+%         surf(simAnglesOfAttack,simAltTotal,cellfun(@(x)x(i),aeroCoeffTotal)')
+%         xlabel('Angle of Attack [deg]')
+%         ylabel('Altitude [km]')
+%         zlabel([labels{i},' Coefficient [-]'])
+%         set(gca,'FontSize',15)
+%         grid on
+%         if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
+%     end
+%     
+%     %...Plot aerodynamic coefficients in 3D against Knudsen number
+%     for i = 1:2:3
+%         F = figure('rend','painters','pos',figSizeSmall);
+%         surf(simAnglesOfAttack,interpolate(altitude,simAltitudes,MCD.knudsenNumber),cellfun(@(x)x(i),aeroCoefficients)')
+%         xlabel('Angle of Attack [deg]')
+%         ylabel('Knudsen Number [-]')
+%         zlabel([labels{i},' Coefficient [-]'])
+%         set(gca,'FontSize',15,'YScale','log')
+%         grid on
+%     end
 end
 
 %% Validation
