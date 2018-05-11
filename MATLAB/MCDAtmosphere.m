@@ -14,15 +14,15 @@ else, folder = 'MCD'; end
 
 genTable = true;
 plotResults = false;
-savePlots = false;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(savePlots);
+saveFigures = false;
+[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
 
 %...Constants
 global Ru
-Ru = 8.3145; % universal gas constant
-Na = 6.0221e23; % Avogadro's number
+Ru = 8.3144598; % universal gas constant
+Na = 6.022140857e23; % Avogadro's number
 masses = [44.01,39.95,28.01,28.01,48.00,16.00,32.00,1.01,2.02,4.00,18.02]*1e-3; % molar masses
 collision = [3.941,3.542,3.798,3.760,3.467,3.467,3.467,2.827,2.827,2.551,2.650]*1e-10; % colision diameters
 
@@ -71,15 +71,8 @@ presLoc = find(cellfun(@(x)isequal(x,'pres'),dataLabel));
 tempLoc = find(cellfun(@(x)isequal(x,'temp'),dataLabel));
 windLoc = find(cellfun(@(x)isequal(x,'horz'),dataLabel));
 cpLoc = find(cellfun(@(x)isequal(x,'cp'),dataLabel));
-gassesLoc = find(cellfun(@(x)length(x)<=4,dataStr));
-if fullDatabase
-    gasOrder = [2,4,1,8,9,11,10,3,6,7,5];
-    gasStr = dataStr(gasOrder+min(gassesLoc)-1);
-    gassesLoc = gassesLoc(gasOrder);
-    masses = masses(gasOrder);
-    collision = collision(gasOrder);
-end
-G = length(gassesLoc);
+gasesLoc = find(cellfun(@(x)length(x)<=4,dataStr));
+G = length(gasesLoc);
 
 %% Download Data
 
@@ -133,64 +126,134 @@ for t = 1:T
 end
 clear locNaN cpData
 
-%% Molecular Properties
-
-%...Compute molecular mass and ratio
-molarRatioLatLonTimeAvg = cell(size(gassesLoc));
-molarRatio = 0;
-molarMass = 0;
-for g = gassesLoc
-    molarRatioLatLonTimeAvg{g-min(gassesLoc)+1} = squeeze(mean(mean(mean(data{g},1),2),4));
-    molarRatio = molarRatio + data{g};
-    molarMass = molarMass + masses(g-6)*data{g};
+%...Reorder gases
+if fullDatabase
+    gasOrder = [2,4,1,8,9,11,10,3,6,7,5];
+    dataStr(min(gasesLoc):end) = dataStr(gasOrder+min(gasesLoc)-1);
+    dataLabel(min(gasesLoc):end) = dataLabel(gasOrder+min(gasesLoc)-1);
+    gasStr = dataStr(min(gasesLoc):end);
+    gasesLoc = gasesLoc(gasOrder);
+    masses = masses(gasOrder);
+    collision = collision(gasOrder);
+    oldData = data;
+    for g = 0:G-1
+        data{min(gasesLoc) + g} = oldData{min(gasesLoc) + gasOrder(g+1) - 1};
+    end
+    gasesLoc = find(cellfun(@(x)length(x)<=4,dataStr)); % redefine
 end
-data_extended = horzcat(data,molarMass);
+HLoc = find(cellfun(@(x)isequal(x,'H'),dataStr));
 
-%% Create Tabulated Atmosphere
+%% Latitude-Longitude-Time-Average Atmosphere
 
-if genTable
-    %...Average over latitude, longitude, time, to get tabulated atmosphere
-    %   over altitude only
-    tabularLatLonTimeAvg = TabulatedMCDAtmosphere(data_extended,'f(h)');
+%...Function handles for functions
+L_char = 2.5; % characteristic length
+numberDensityFun = @(M,rho) Na./M.*rho;
+meanFreePathFun = @(M,rho,sigma) 1/sqrt(2)/pi./numberDensityFun(M,rho)./sigma.^2;
+knudsenNumberFun = @(M,rho,sigma) meanFreePathFun(M,rho,sigma)/L_char;
+
+%...Average data over latitude, longitude and time
+dataLatLonTimeAvg = zeros(size(data{1},3),length(data));
+for i = 1:length(data)
+    dataLatLonTimeAvg(:,i) = mean(mean(mean(data{i},1),2),4);
+end
+
+%...Compute information on molecular mass, gas constant, specific heat
+%   ratio and speed of sound
+molarMassLatLonTimeAvg = dataLatLonTimeAvg(:,gasesLoc) * masses';
+gasConstantLatLonTimeAvg = Ru./molarMassLatLonTimeAvg;
+specificHeatRatioLatLonTimeAvg = 1./(1-gasConstantLatLonTimeAvg./dataLatLonTimeAvg(:,cpLoc));
+specificHeatRatioLatLonTimeAvg(dataLatLonTimeAvg(:,HLoc) > 0.075) = 5/3; % correct values, since MCD gives weird results
+speedOfSoundLatLonTimeAvg = sqrt(specificHeatRatioLatLonTimeAvg .* gasConstantLatLonTimeAvg .* ...
+    dataLatLonTimeAvg(:,tempLoc));
+
+%...Add new data to atmosphere table
+dataLatLonTimeAvg = horzcat(dataLatLonTimeAvg,gasConstantLatLonTimeAvg,...
+    specificHeatRatioLatLonTimeAvg,molarMassLatLonTimeAvg);
+
+%...Compute other properties
+numberDensityLatLonTimeAvg = numberDensityFun(molarMassLatLonTimeAvg,dataLatLonTimeAvg(:,densLoc));
+collisionDiameterLatLonTimeAvg = dataLatLonTimeAvg(:,gasesLoc) * collision';
+knudsenNumberLatLonTimeAvg = knudsenNumberFun(molarMassLatLonTimeAvg,dataLatLonTimeAvg(:,densLoc),...
+    collisionDiameterLatLonTimeAvg);
+
+%...Verify results
+if plotResults && ~saveFigures
+    figure
+    yyaxis left
+    hold on
+    plot(altitude,gasConstantLatLonTimeAvg,'LineWidth',1.25)
+    plot(altitude,dataLatLonTimeAvg(:,cpLoc),'LineWidth',1.25)
+    hold off
+    yyaxis right
+    plot(altitude,specificHeatRatioLatLonTimeAvg,'LineWidth',1.25)
+    xlabel('Altitude [km]')
+    set(gca,'FontSize',12.5,'XScale','log')
+    grid on
+    xlim([altitude(1),altitude(end)])
+end
+
+%% Time-Average Atmosphere
+
+%...Average data over latitude, longitude and time
+dataTimeAvg = zeros(size(data{1},1),size(data{1},2),size(data{1},3),length(data));
+for i = 1:length(data)
+    dataTimeAvg(:,:,:,i) = mean(data{i},4);
+end
+
+%...Compute information on molecular mass, gas constant, specific heat
+%   ratio and speed of sound
+molarMassTimeAvg = arrayfun(@(i)dataTimeAvg(:,:,:,min(gasesLoc)+i-1) * masses(i),1:G,'UniformOutput',false);
+molarMassTimeAvg = sum(cat(4,molarMassTimeAvg{:}),4);
+gasConstantTimeAvg = Ru./molarMassTimeAvg;
+specificHeatRatioTimeAvg = 1./(1-gasConstantTimeAvg./dataTimeAvg(:,:,:,cpLoc));
+specificHeatRatioTimeAvg(dataTimeAvg(:,:,:,HLoc) > 0.075) = 5/3; % correct values, since MCD gives weird results
+speedOfSoundTimeAvg = sqrt(specificHeatRatioTimeAvg .* gasConstantTimeAvg .* ...
+    dataTimeAvg(:,:,:,tempLoc));
+
+%...Add new data to atmosphere table
+dataTimeAvg = cat(4,dataTimeAvg,gasConstantTimeAvg,...
+    specificHeatRatioTimeAvg,molarMassTimeAvg);
+
+%...Compute other properties
+numberDensityTimeAvg = numberDensityFun(molarMassTimeAvg,dataTimeAvg(:,:,:,densLoc));
+collisionDiameterTimeAvg = arrayfun(@(i)dataTimeAvg(:,:,:,min(gasesLoc)+i-1) * collision(i),1:G,'UniformOutput',false);
+collisionDiameterTimeAvg = sum(cat(4,collisionDiameterTimeAvg{:}),4);
+knudsenNumberTimeAvg = knudsenNumberFun(molarMassTimeAvg,dataTimeAvg(:,:,:,densLoc),...
+    collisionDiameterTimeAvg);
+
+%...Verify results
+if plotResults && ~saveFigures
+    [lonH,latH,altH] = meshgrid(longitude,latitude,hs);
     
-    %...Average over time, to get tabulated atmosphere over altitude, 
-    %   latitude and longitude
-    tabularTimeAvg = TabulatedMCDAtmosphere(data_extended,'f(h,d,l)');
+    figure;
+    S = slice(lonH,latH,altH,molarMassTimeAvg,[],[],hs(1:2:end));
+    plotSettings(S,'',logspace(log10(hs(1)),log10(hs(end)),7),NaN,true,true)
+    
+    figure;
+    S = slice(lonH,latH,altH,gasConstantTimeAvg,[],[],hs(1:2:end));
+    plotSettings(S,'',logspace(log10(hs(1)),log10(hs(end)),7),NaN,true,true)
+    
+    figure;
+    S = slice(lonH,latH,altH,specificHeatRatioTimeAvg,[],[],hs(1:2:end));
+    plotSettings(S,'',logspace(log10(hs(1)),log10(hs(end)),7),NaN,true,true)
 end
 
 %% Atmospheric Composition
 
-%...Values
-L_char = 2.5; % characteristic length
-numberDensityFun = @(M,rho) Na*rho./M;
-meanFreePathFun = @(M,rho,sigma) 1/sqrt(2)/pi./numberDensityFun(M,rho)./sigma.^2;
-knudsenNumberFun = @(M,rho,sigma) meanFreePathFun(M,rho,sigma)/L_char;
-
 %...Compute number density per altitude
-if genTable && fullDatabase
-    %...Determine gas mixture values
-    gasRatio = zeros(length(hs),G);
-    moleMass = zeros(size(hs));
-    collisionDiameter = zeros(size(hs));
-    density = tabularLatLonTimeAvg(:,1);
-    pressure = tabularLatLonTimeAvg(:,2);
-    temperature = tabularLatLonTimeAvg(:,3);
-    numberDensity = zeros(size(hs));
-    knudsenNumber = zeros(size(hs));
-    for h = 1:length(hs)
-        gasRatio(h,:) = arrayfun(@(g)molarRatioLatLonTimeAvg{g-min(gassesLoc)+1}(h),gassesLoc);
-        moleMass(h) = sum(masses.*gasRatio(h,:));
-        collisionDiameter(h) = sum(collision.*gasRatio(h,:));
-        numberDensity(h) = numberDensityFun(moleMass(h),density(h));
-        knudsenNumber(h) = knudsenNumberFun(moleMass(h),density(h),collisionDiameter(h));
-    end
-    
-    %...Combine elements for SPARTA analysis
-    R = Ru./squeeze(mean(mean(mean(molarMass,1),2),4)); % gas constant
-    gamma = 1./(1-R./squeeze(mean(mean(mean(data{cpLoc},1),2),4))); % specific heat ratio
-    sos = sqrt(R.*gamma.*tabularLatLonTimeAvg(:,3)); % speed of sound
-    save('../SPARTA/MCDEnvir','altitude','density','pressure','temperature','gamma',...
-        'gasRatio','gasStr','knudsenNumber','numberDensity','sos');
+if genTable && fullDatabase    
+    %...Save elements for SPARTA analysis
+    density = dataLatLonTimeAvg(:,densLoc);
+    pressure = dataLatLonTimeAvg(:,presLoc);
+    temperature = dataLatLonTimeAvg(:,tempLoc);
+    gasRatio = dataLatLonTimeAvg(:,gasesLoc);
+    gasConstant = gasConstantLatLonTimeAvg;
+    specificHeatRatio = specificHeatRatioLatLonTimeAvg;
+    speedOfSound = speedOfSoundLatLonTimeAvg;
+    numberDensity = numberDensityLatLonTimeAvg;
+    knudsenNumber = knudsenNumberLatLonTimeAvg;
+    save('../SPARTA/MCDEnvir','altitude','density','pressure','temperature',...
+        'gasRatio','gasStr','gasConstant','specificHeatRatio','speedOfSound','numberDensity','knudsenNumber');
     
     if plotResults
         %...Plot gas percentage
@@ -208,14 +271,14 @@ if genTable && fullDatabase
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
         ylim([1e-10,1])
-        if ~savePlots, title('Atmospheric Composition'),
+        if ~saveFigures, title('Atmospheric Composition'),
         else, saveas(F,'../../Report/figures/mars_atm_comp','epsc'), end
         
         %...Plot molar mass and collision diameter
         F = figure('rend','painters','pos',figSizeSmall);
         yyaxis left
         hold on
-        plot(hs,moleMass*1e3,'LineWidth',1.75)
+        plot(hs,molarMassLatLonTimeAvg*1e3,'LineWidth',1.75)
         plot([10,10^6],masses(3)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','--')
         plot([10,10^6],masses(4)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','-.')
         hold off
@@ -226,10 +289,10 @@ if genTable && fullDatabase
         ylabel('Offset in Gas Presence [-]')
         set(gca,'FontSize',15,'XScale','log','YScale','log')
         xlabel('Altitude [km]')
-        legend('Mars','CO_2','H','Gas','Location','Best')
+        legend('Mars','CO_2','H','Offset','Location','Best')
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
-        if ~savePlots, title('Atmospheric Composition'),
+        if ~saveFigures, title('Atmospheric Composition'),
         else, saveas(F,'../../Report/figures/mars_atm_mol','epsc'), end
         
         %...Plot number density and Knudsen
@@ -244,9 +307,23 @@ if genTable && fullDatabase
         set(gca,'FontSize',15)
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
-        if ~savePlots, title('Number Density and Knudsen'),
+        if ~saveFigures, title('Number Density and Knudsen'),
         else, saveas(F,'../../Report/figures/mars_atm_num','epsc'), end
     end
+    
+    clear density pressure temperature gasRatio gasConstant specificHeatRatio speedOfSound numberDensity knudsenNumber
+end
+
+%% Create Tabulated Atmosphere
+
+if genTable
+    %...Average over latitude, longitude, time, to get tabulated atmosphere
+    %   as a function of altitude only
+    tabularLatLonTimeAvg = TabulatedMCDAtmosphere('f(h)',dataLatLonTimeAvg);
+    
+    %...Average over time, to get tabulated atmosphere as a function of
+    %   altitude, latitude and longitude
+    tabularTimeAvg = TabulatedMCDAtmosphere('f(h,d,l)',dataTimeAvg);
 end
 
 %% Plot
@@ -269,7 +346,7 @@ if plotResults
                 S = slice(lonT,latT,time,squeeze(data{i}(:,:,hs_loc_plot(h),:)),[],[],ts);
                 plotSettings(S,dataUnit{i},ts,hs_plot(h),false,true)
             end
-            if ~savePlots, subplotTitle(dataStr{i}),
+            if ~saveFigures, subplotTitle(dataStr{i}),
             else, saveas(F,['../../Report/figures/mars_',dataLabel{i}],'epsc'), end
         else % other data
             F = figure('rend','painters','pos',figSizeLarge);
@@ -278,7 +355,7 @@ if plotResults
                 S = slice(lonH,latH,alt,data{i}(:,:,:,t),[],[],hs_plot);
                 plotSettings(S,dataUnit{i},hs_plot,ts(t),true,true)
             end
-            if ~savePlots, subplotTitle(dataStr{i}),
+            if ~saveFigures, subplotTitle(dataStr{i}),
             else, saveas(F,['../../Report/figures/mars_',dataLabel{i}],'epsc'), end
         end
     end
@@ -286,21 +363,21 @@ if plotResults
     %...Gas constant
     if fullDatabase
 %         R = Ru./molarMass;
-        R = 197*ones(1,1,1,T);
+        gasConstant = 197*ones(1,1,1,T);
     else
-        R = 197*ones(1,1,1,T);
+        gasConstant = 197*ones(1,1,1,T);
     end
-    gamma = 1./(1-R./data{cpLoc});
+    specificHeatRatio = 1./(1-gasConstant./data{cpLoc});
 
     %...Speed of sound
     F = figure('rend','painters','pos',figSizeLarge);
     for t = 1:T
         subplot(2,2,t)
-        sos = sqrt(R(:,:,:,t).*gamma(:,:,:,t).*data{tempLoc}(:,:,:,t));
+        sos = sqrt(gasConstant(:,:,:,t).*specificHeatRatio(:,:,:,t).*data{tempLoc}(:,:,:,t));
         S = slice(lonH,latH,alt,sos,[],[],hs_plot);
         plotSettings(S,dataUnit{windLoc},hs_plot,ts(t),true,true)
     end
-    if ~savePlots, subplotTitle('Speed of Sound'),
+    if ~saveFigures, subplotTitle('Speed of Sound'),
     else, saveas(F,'../../Report/figures/mars_sos','epsc'), end
 
     %...Mean values
@@ -315,7 +392,7 @@ if plotResults
                 S = pcolor(lonH(:,:,1),latH(:,:,1),tabularTimeAvg(:,:,hs_loc_plot(h),i));
                 plotSettings(S,mean_units{i},[],hs_plot(h),false,false)
             end
-            if ~savePlots, subplotTitle(['Average ',mean_titles{i}]),
+            if ~saveFigures, subplotTitle(['Average ',mean_titles{i}]),
             else, saveas(F,['../../Report/figures/',mean_labels{i}],'epsc'), end
         end
     end
@@ -354,33 +431,6 @@ table(hs_tab',angle_max',angle_rms',angle_no_wind',mag_max',mag_mrs',mag_no_wind
 fulldata = vertcat(round(hs_tab,-1),round(V_circ,-1),round(V_atm,0),round(V_wind_max,0),round(V_wind_rms,0));
 sprintf([repmat('\\num{%.0f} & ',[1,4]),'\\num{%0.f} \\\\\n'],fulldata)
 
-%% TEST >>>>>>>>>>>
-
-% R = Ru./molecular_mass;
-% gamma = 1./(1-R./data{cp_loc});
-% 
-% mean(mean(mean(mean(molecular_ratio))))
-% median(median(median(median(molecular_ratio))))
-% max(max(max(max(molecular_ratio))))
-% min(min(min(min(molecular_ratio))))
-% 
-% figure;
-% i = 0;
-% for t = 1:T
-%     for h = 1:length(hs_plot)%1:H%4:H%
-%         i = i+1;
-%         subplot(4,6,i)%subplot(4,3,i)%
-%         pcolor(gamma(:,:,hs_loc_plot(h),t)), colorbar, title(sprintf(...
-%             '%i deg, %i km',ts(t),hs_plot(h))), axis tight
-%     end
-% end
-% 
-% mean(mean(mean(mean(R))))
-% median(median(median(median(R))))
-% max(max(max(max(R))))
-% min(min(min(min(R))))
-
-%%% TEST <<<<<<<<<<
 %% Functions
 
 function [H,hs,hs_plot,hs_loc] = altitudeRange()
@@ -401,14 +451,14 @@ function plotSettings(S,label,zs,w,log,three)
     if three
         view(21,21)
         set(S,'EdgeColor','none')
-%         if save_plots
-%             set(S,'EdgeColor','none')
-%         else
-%             set(S,'EdgeColor','none','FaceColor','interp','FaceAlpha','interp')
-%             alpha('color')
-%             alphamap('rampdown')
-%             alphamap('increase',0.25)
-%         end
+        if save_plots
+            set(S,'EdgeColor','none')
+        else
+            set(S,'EdgeColor','none','FaceColor','interp','FaceAlpha','interp')
+            alpha('color')
+            alphamap('rampdown')
+            alphamap('increase',0.25)
+        end
     else
         set(S,'EdgeColor','none')
     end

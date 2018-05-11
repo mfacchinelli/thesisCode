@@ -3,16 +3,20 @@ fclose('all'); clear all; close all force; profile off; clc; format long g;
 %...General
 radius = 3.396e6;
 mu = 4.282e13;
+% radius = 695.508e6;
+% mu = 1.32712440019e20;
 
 %% Initial Conditions
 
 clc;
 
 %...Elliptical orbit
-periapsis = 105e3+radius;
+periapsis = 110e3+radius;
 apoapsis = 47500e3+radius;
 % periapsis = 200e3+radius;
 % apoapsis = 250e3+radius;
+% periapsis = 100e6+radius;
+% apoapsis = 200e6+radius;
 
 a = (apoapsis+periapsis)/2;
 e = (apoapsis-periapsis)/(apoapsis+periapsis);

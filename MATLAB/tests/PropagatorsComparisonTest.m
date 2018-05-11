@@ -6,7 +6,7 @@ addpath tests data functions
 %...Figure settings
 plotAllFigures = false;
 saveFigure = false;
-figSize = saveFigureSettings(saveFigure);
+[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Result repository
 TudatApplicationOutput = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/';
@@ -21,7 +21,7 @@ switch testCase
         scaling = 3600;
         timeLabel = 'Time [h]';
         timeStepSeconds = 10;
-        constantStepSizes = [1.0, 5.0, 10.0, 25.0, 50.0, 100.0];
+        constantStepSizes = [1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0];
         repository = fullfile(repository,'aero');
     case 1 % full aerobraking
         R = 3.396e3;
@@ -32,12 +32,12 @@ switch testCase
         constantStepSizes = [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 300.0];
         repository = fullfile(repository,'aero_full');
     case 2 % interplanetary trajectory
-        R = 3.396e3;
-        simulationDuration = 30;
+        R = 695.508e3;
+        simulationDuration = 50;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 100;
-        constantStepSizes = [];
+        constantStepSizes = [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 300.0];
         repository = fullfile(repository,'inter');
     case 3 % circular orbit
         R = 6378.1363;
@@ -46,10 +46,18 @@ switch testCase
         timeLabel = 'Time [day]';
         timeStepSeconds = 100;
         constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
-        repository = fullfile(repository,'vittaldev');
+        repository = fullfile(repository,'circ');
+    case 4 % Molniya orbit
+        R = 6378.1363;
+        simulationDuration = 25.0;
+        scaling = 24*3600;
+        timeLabel = 'Time [day]';
+        timeStepSeconds = 100;
+        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
+        repository = fullfile(repository,'moln');
 end
 
-values = length(constantStepSizes);
+values = [7,length(constantStepSizes)];
 standardFunctionEvals = [8,13;4,0]; % [RK5(6),RK7(8);RK4,-]
 
 %...Labels
@@ -78,13 +86,13 @@ results = repmat(struct('prop',[],'int',[],'val',[],'kepler',[],'cartesian',[],.
 %% Read Propagated Orbits
 
 %...Loop over propagators
-for k = 1:values
-    if plotAllFigures
-        F = figure('rend','painters','pos',figSize);
-        hold on
-    end
-    for i = 1:length(propagators)
-        for j = 1:length(integrators)
+for j = 1:length(integrators)
+    for k = 1:values(j)
+        if plotAllFigures
+            F = figure('rend','painters','pos',figSizeLarge);
+            hold on
+        end
+        for i = 1:length(propagators)
             if ~( i == length(propagators) && j == length(integrators) ) && ...
                     ~( i == length(propagators) && k ~= 1 )
                 %...Get orbital data
@@ -147,12 +155,12 @@ for k = 1:values
     end
     if plotAllFigures
         hold off
-        if saveFigure, saveas(F,['../../Report/figures/prop_comp_dt_',testCase],'epsc'), end
+%         if saveFigure, saveas(F,['../../Report/figures/prop_comp_dt_',testCase],'epsc'), end
     end
 end
 clear fileName fileID k kepler cartesian evaluations time
 
-F = figure('rend','painters','pos',figSize);
+F = figure('rend','painters','pos',figSizeLarge);
 yyaxis right
 scatter(results(end,1).timeOut(1:end-1),results(end,1).evaluations,35,'filled')
 ylabel('Evaluations [-]')
@@ -162,7 +170,7 @@ ylabel('Time Step [s]')
 xlabel(timeLabel)
 grid on
 set(gca,'FontSize',15,'YScale','log')
-if saveFigure, saveas(F,['../../Report/figures/prop_ref_dt_',testCase],'epsc'), 
+if saveFigure, %saveas(F,['../../Report/figures/ref_dt_',testCase],'epsc'),
 else, title('Reference'), end
 
 %% Plot Reference Trajectory
@@ -172,7 +180,7 @@ reference = results(ref,1,1);
 time = timeConstantStepSize;
 
 %...Plot Kepler elements
-F = figure('rend','painters','pos',figSize);
+F = figure('rend','painters','pos',figSizeLarge);
 for i = 1:6
     subplot(2,3,i)
     hold on
@@ -189,11 +197,11 @@ for i = 1:6
     grid on
     set(gca,'FontSize',15)
 end
-if saveFigure, saveas(F,['../../Report/figures/prop_kepl_ref_',testCase],'epsc'), end
+% if saveFigure, saveas(F,['../../Report/figures/kepl_ref_',num2str(testCase)],'epsc'), end
 
 %...Plot Cartesian position
 [x,y,z] = sphere;
-F = figure('rend','painters','pos',figSize);
+F = figure('rend','painters','pos',figSizeLarge);
 hold on
 plot3(reference.cartesianOut(:,1),reference.cartesianOut(:,2),...
     reference.cartesianOut(:,3),'LineWidth',1.5)
@@ -209,7 +217,7 @@ set(gca,'FontSize',15)
 if plotAllFigures
     %...Plot true anomaly
     for k = 1:values
-        F = figure('rend','painters','pos',figSize);
+        F = figure('rend','painters','pos',figSizeLarge);
         for i = 1:length(propagators)-1
             subplot(2,2,i)
             scatter(results(i,1,k).timeOut(1:end-1),results(i,1,k).keplerOut(1:end-1,6),...
@@ -224,11 +232,11 @@ if plotAllFigures
             set(gca,'FontSize',15)
             title(propagatorNames{i})
         end
-        if saveFigure, saveas(F,['../../Report/figures/prop_peri_',testCase],'epsc'), end
+%         if saveFigure, saveas(F,['../../Report/figures/prop_peri_',testCase],'epsc'), end
     end
     
     %...Plot area of interest
-    F = figure('rend','painters','pos',figSize);
+    F = figure('rend','painters','pos',figSizeLarge);
     offsetTrueAnomaly = 30;
     loc = ( reference.keplerOut(:,6) > ( 360 - offsetTrueAnomaly ) ) | ...
         ( reference.keplerOut(:,6) < offsetTrueAnomaly ); loc(end) = false;
@@ -249,7 +257,7 @@ end
 % %...Difference in Keplerian elements
 % for l = 1:values
 % for k = 1:length(integrators)
-%     F = figure('rend','painters','pos',figSize);
+%     F = figure('rend','painters','pos',figSizeLarge);
 %     for i = 1:6
 %         subplot(2,3,i)
 %         hold on
@@ -268,10 +276,10 @@ end
 % end
 
 %...Difference in Cartesian elements
-rmsError = zeros(length(propagators),8,length(integrators),values);
-for l = 1:values
-    for k = 1:length(integrators)
-        if plotAllFigures, F = figure('rend','painters','pos',figSize); end
+rmsError = zeros(length(propagators),8,length(integrators),max(values));
+for k = 1:length(integrators)
+    for l = 1:values(k)
+        if plotAllFigures, F = figure('rend','painters','pos',figSizeLarge); end
         for i = 1:8
             if plotAllFigures
                 subplot(2,4,i)
@@ -315,7 +323,7 @@ for l = 1:values
         end
         if plotAllFigures
             subplotLegend(propagatorNames(1:end-1))
-            if saveFigure, saveas(F,['../../Report/figures/prop_diff_cart_',testCase],'epsc')
+            if saveFigure, %saveas(F,['../../Report/figures/prop_diff_cart_',testCase],'epsc')
             else, subplotTitle(integratorNames{k}), end
         end
     end
@@ -340,10 +348,10 @@ end
 styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
 
 %...Plot RMS error for variable step size
-F = figure('rend','painters','pos',figSize);
+F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:length(propagators)-1
-    plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values),squeeze(rmsError(i,4,1,:))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
+    plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values(1)),squeeze(rmsError(i,4,1,1:values(1)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
 end
 hold off
 xlabel('Function Evaluations [-]')
@@ -351,21 +359,21 @@ ylabel('RMS Position Error [m]')
 legend(propagatorNames(1:end-1),'Location','NE')
 set(gca,'FontSize',15,'YScale','log')
 grid on
-% if saveFigure, saveas(F,['../../Report/figures/',testCase],'epsc'), end
+if saveFigure, saveas(F,['../../Report/figures/rms_var_',num2str(testCase)],'epsc'), end
     
 %...Plot RMS error for constant step size
-F = figure('rend','painters','pos',figSize);
+F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:length(propagators)-1
-    plot(constantStepSizes,squeeze(rmsError(i,4,2,:))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
+    plot(constantStepSizes,squeeze(rmsError(i,4,2,1:values(2)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
 end
 hold off
 xlabel('Constant Time Step [s]')
 ylabel('RMS Position Error [m]')
 legend(propagatorNames(1:end-1),'Location','SE')
-set(gca,'FontSize',15,'XScale','log','YScale','log')
+set(gca,'FontSize',15,'YScale','log')
 grid on
-% if saveFigure, saveas(F,['../../Report/figures/',testCase],'epsc'), end
+if saveFigure, saveas(F,['../../Report/figures/rms_const_',num2str(testCase)],'epsc'), end
 
 %% Plot USM Elements
 
@@ -398,7 +406,7 @@ if plotAllFigures
         fclose(fileID);
         
         %...Plot USM elements
-        F = figure('rend','painters','pos',figSize);
+        F = figure('rend','painters','pos',figSizeLarge);
         for j = 1:length(labels)
             subplot(2,spyValue,j)
             hold on

@@ -86,13 +86,13 @@ simSteps = 1000; % simulation time (specified as number of steps)
 %   Should be struct containing 3 fields:
 %       - altitude:         array of altitudes
 %       - density:          atmospheric density (per altitude)
-%       - gamma:            specific heat ratio (per altitude)
+%       - specificHeatRatio:            specific heat ratio (per altitude)
 %       - gasStr:           cell array of gasses in mixture
 %       - gasRatio:         matrix of gas ratios (per altitude)
 %       - knudsenNumber:    array of Knudsen numbers (per altitude)
 %       - numberDensity:    array of number density (per altitude)
 %       - pressure:         atmospheric pressure (per altitude)
-%       - sos:              speed of sound (per altitude)
+%       - speedOfSound:     speed of sound (per altitude)
 %   Note that values are averaged over latitude, longitude and time.
 MCD = load(MCDData);
 
@@ -101,11 +101,11 @@ altitude = MCD.altitude;
 density = MCD.density;
 pressure = MCD.pressure;
 temperature = MCD.temperature;
-gamma = MCD.gamma;
+gamma = MCD.specificHeatRatio;
 gasRatios = MCD.gasRatio';
 gasNames = MCD.gasStr;
 numberDensity = MCD.numberDensity;
-speedOfSound = MCD.sos;
+speedOfSound = MCD.speedOfSound;
 
 %...Interpolate to find data for rarefied regime
 [density,pressure,temperature,gamma,gasRatios,numberDensity,speedOfSound] = interpolate(altitude,simAltRarefied,...
@@ -302,8 +302,8 @@ basePressure = @(gamma,Mach) 2 ./ gamma ./ Mach.^2 .* ( ( 1 ./ Mach.^2 .* ( 2 ./
     ( ( 2 * gamma .* Mach.^2 - (gamma-1) ) ./ (gamma+1) ) - 1 );
 
 %...Extract MCD parameters
-gamma = MCD.gamma;
-speedOfSound = MCD.sos;
+gamma = MCD.specificHeatRatio;
+speedOfSound = MCD.speedOfSound;
 
 %...Interpolate to find data for rarefied regime
 [gamma,speedOfSound] = interpolate(altitude,simAltContinuum,gamma,speedOfSound);

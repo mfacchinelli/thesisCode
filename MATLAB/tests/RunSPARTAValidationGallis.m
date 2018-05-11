@@ -64,8 +64,8 @@ r2sOffset = 15; % number of simulated particles per cell
 %...Simulation conditions
 simAnglesOfAttack = 0; % angles of attack for simulation
 simAltRarefied = linspace(100,150,11); % altitudes for rarefied regime simulations
-simGases = {'CO2 N2'};%{'CO2','H','O',{'CO2 N2'}};
-gasRatios = {[0.92,0.08]};%{1.0,1.0,1.0,[0.92,0.08]};
+simGases = {'CO2','H','O'};
+gasRatios = {1.0,1.0,1.0};
 
 %...Time settings
 simTimeStep = round(0.1*diff(MROExtent(1,:))/3500,5); % time step (1/10-th box traverse time)
@@ -98,6 +98,8 @@ speedOfSound = MCD.sos;
 %...Interpolate to find data for rarefied regime
 [density,pressure,gamma,speedOfSound] = interpolate(altitude,simAltRarefied,density,...
     pressure,gamma,speedOfSound);
+numberDensity = repmat(interpolate(altitude,simAltRarefied,MCD.numberDensity),[length(simGases),1]); % overwrite number density
+real2sim = numberDensity / r2sOffset * gridSpacing^3; % overwrite real-to-simulated-particles ratio
 
 %...Find circular velocity at altitude
 MarsCircularVelocity = @(altitude) sqrt( MarsGravityParameter ./ ( MarsRadius + altitude * 1e3 ) );
@@ -124,9 +126,6 @@ for g = 1:length(simGases)
     molecularSpeedRatio(g,:) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound.*sqrt(gamma/2);
     MachNumber(g,:) = sqrt(sum(streamVelocity.^2,2))'./speedOfSound;
 end
-
-numberDensity = repmat(interpolate(altitude,simAltRarefied,MCD.numberDensity),[length(simGases),1]); % overwrite number density
-real2sim = numberDensity / r2sOffset * gridSpacing^3; % overwrite real-to-simulated-particles ratio
 
 %% Generate SPARTA Input File
 
