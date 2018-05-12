@@ -20,7 +20,7 @@ else
 end
 
 %...Figures and tables setting
-saveTable = true;
+saveTable = false;
 showFigure = true;
 saveFigure = false;
 [figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
@@ -102,14 +102,14 @@ density = MCD.density;
 pressure = MCD.pressure;
 temperature = MCD.temperature;
 gamma = MCD.specificHeatRatio;
+speedOfSound = MCD.speedOfSound;
 gasRatios = MCD.gasRatio';
 gasNames = MCD.gasStr;
 numberDensity = MCD.numberDensity;
-speedOfSound = MCD.speedOfSound;
 
 %...Interpolate to find data for rarefied regime
-[density,pressure,temperature,gamma,gasRatios,numberDensity,speedOfSound] = interpolate(altitude,simAltRarefied,...
-    density,pressure,temperature,gamma,gasRatios,numberDensity,speedOfSound);
+[density,pressure,temperature,gamma,speedOfSound,gasRatios,numberDensity] = interpolate(altitude,simAltRarefied,...
+    density,pressure,temperature,gamma,speedOfSound,gasRatios,numberDensity);
 
 %...Create cell arrays of gas information for each altitude
 frac = cell(size(simAltRarefied));

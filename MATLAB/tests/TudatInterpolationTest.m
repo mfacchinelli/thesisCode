@@ -1,4 +1,5 @@
-clear all; close all; clc;
+fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
+addpath functions tests
 
 %%
 
@@ -77,6 +78,8 @@ for i = 1:length(interpValues)
         [ 0, 0 ], nearestLowerIndices{ i }, 2 )
 %     interp2(independentValues{2},independentValues{1},dependentData,interpValues{i}(2),interpValues{i}(1),'linear')
 end
+
+interp2(independentValues{2},independentValues{1},dependentData,15,1975,'linear')
 
 %%
 

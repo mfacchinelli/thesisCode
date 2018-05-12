@@ -382,14 +382,15 @@ if plotResults
 
     %...Mean values
     if genTable
+        mean_plot_params = [densLoc,presLoc,tempLoc,size(tabularTimeAvg,4)-2,size(tabularTimeAvg,4)-1];
         mean_units = {'Pa','kg m^{-3}','K','J kg^{-1} K^{-1}',''};
         mean_titles = {'Pressure','Density','Temperature','Gas Constant','Specific Heat Ratio'};
         mean_labels = {'mars_pres_mean','mars_dens_mean','mars_temp_mean','mars_gas_const_mean','mars_heat_ratio_mean'};
-        for i = 1:size(tabularTimeAvg,4)
+        for i = 1:length(mean_plot_params)
             F = figure('rend','painters','pos',figSizeLarge);
             for h = 1:length(hs_plot)
                 subplot(2,3,h)
-                S = pcolor(lonH(:,:,1),latH(:,:,1),tabularTimeAvg(:,:,hs_loc_plot(h),i));
+                S = pcolor(lonH(:,:,1),latH(:,:,1),tabularTimeAvg(:,:,hs_loc_plot(h),mean_plot_params(i)));
                 plotSettings(S,mean_units{i},[],hs_plot(h),false,false)
             end
             if ~saveFigures, subplotTitle(['Average ',mean_titles{i}]),
