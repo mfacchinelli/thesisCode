@@ -1,0 +1,58 @@
+# 3d flow around MRO
+
+seed 12345
+dimension 3
+
+global gridcut 0.1 comm/sort yes
+
+# CREATE BOUNDARY THAT LETS PARTICLES FLOW OUT OF BOX
+boundary o o o
+
+# CREATE BOX WITH SPECIFIED DIMENSIONS
+create_box %.1f %.1f %.1f %.1f %.1f %.1f
+create_grid %d %d %d
+
+balance_grid rcb cell
+
+# SET DENSITY AND PARTICLES TO SIMULATE
+global nrho %.3E fnum %.1E # number density and real-to-simulated-particles ratio
+
+# SPECIFY GAS MIXTURE AND VELOCITY
+species mars.species %s # gas names
+%s
+mixture atm %s vstream %.1f %.1f %.1f # gas names and velocity
+mixture atm %s temp %.1f # gas names
+
+# START LOOP OVER ANGLE OF ATTACK
+variable alpha index %s
+
+# READ MRO DATA FROM FILE
+read_surf data.mro rotate ${alpha} 0 -1 0
+group mro surf type 1
+
+# CREATE COLLISION MODEL BASED ON VSS
+surf_collide 1 diffuse 300.0 1.0
+surf_modify all collide 1
+collide vss atm mars.vss
+
+fix in emit/face atm xhi
+
+# SET SIMULATION TIME STEP
+timestep %f
+
+# COMPUTE NORMAL PRESSURE AND SHEAR STRESS
+compute 1 surf mro atm px py pz shx shy shz
+fix 1 ave/surf mro 10 20 200 c_1[*]
+dump 1 surf mro 200 %s/${alpha}.coeff.* id f_1[*]
+
+# GENERATE STATISTICS ON PROGRESS
+stats 100
+stats_style step cpu np nattempt ncoll nscoll nscheck
+
+# RUN SIMULATION
+run %d
+
+# CLOSE ANGLE OF ATTACK LOOP
+clear
+next alpha
+jump in.mro

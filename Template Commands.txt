@@ -1,4 +1,13 @@
 ##########################################################################################
+### Run on Server
+
+#--- Run Example ---#
+mpirun -np 14 ../sparta/src/spa_mpi -in in.mro
+
+#--- Run MRO Analysis ---#
+matlab -r -nodesktop -nodisplay -nosplash -nojvm 'RunSPARTAServer'
+
+##########################################################################################
 ### Run Example Sphere
 
 cd /Users/Michele/AE\ Software/SPARTA/examples/sphere
