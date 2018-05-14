@@ -4,7 +4,7 @@ addpath functions
 %% Settings
 
 %...Globals
-global fullDatabase plotResults
+global fullDatabase plotResults saveFigures
 
 %...Set settings
 downloadDatabse = false;
@@ -13,7 +13,7 @@ if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
 genTable = true;
-plotResults = false;
+plotResults = true;
 saveFigures = false;
 [figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigures);
 
@@ -241,7 +241,7 @@ end
 %% Atmospheric Composition
 
 %...Compute number density per altitude
-if genTable && fullDatabase    
+if fullDatabase
     %...Save elements for SPARTA analysis
     density = dataLatLonTimeAvg(:,densLoc);
     pressure = dataLatLonTimeAvg(:,presLoc);
@@ -266,7 +266,7 @@ if genTable && fullDatabase
         hold off
         xlabel('Altitude [km]')
         ylabel('Gas Fraction [-]')
-        legend(gasStr,'Location','Best')
+        legend(gasStr,'NumColumns',2,'Location','Best')
         set(gca,'FontSize',15,'XScale','log','YScale','log')
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
@@ -432,6 +432,10 @@ table(hs_tab',angle_max',angle_rms',angle_no_wind',mag_max',mag_mrs',mag_no_wind
 fulldata = vertcat(round(hs_tab,-1),round(V_circ,-1),round(V_atm,0),round(V_wind_max,0),round(V_wind_rms,0));
 sprintf([repmat('\\num{%.0f} & ',[1,4]),'\\num{%0.f} \\\\\n'],fulldata)
 
+%% Close All Figures
+
+close all;
+
 %% Functions
 
 function [H,hs,hs_plot,hs_loc] = altitudeRange()
@@ -444,7 +448,7 @@ function [H,hs,hs_plot,hs_loc] = altitudeRange()
 end
 
 function plotSettings(S,label,zs,w,log,three)
-    global save_plots
+    global saveFigures
     c = colorbar;
     c.Label.String = label;
     xlabel('Long. [deg]'), xticks(-180:90:180)
@@ -452,7 +456,7 @@ function plotSettings(S,label,zs,w,log,three)
     if three
         view(21,21)
         set(S,'EdgeColor','none')
-        if save_plots
+        if saveFigures
             set(S,'EdgeColor','none')
         else
             set(S,'EdgeColor','none','FaceColor','interp','FaceAlpha','interp')
