@@ -22,8 +22,11 @@ end
 %...Figures and tables setting
 saveTable = false;
 showFigure = true;
-saveFigure = false;
+saveFigure = true;
 [figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
+
+%...Host file settings
+useHostFile = false; % run SPARTA simulation with 4 cores (slows down computer a lot)
 
 %...SPARTA
 SPARTAExec = '/Users/Michele/AE Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
@@ -178,9 +181,15 @@ switch lower(selection)
         system(['rm ',fullfile(adapt2UNIX(VideoRepository),'*')]);
         
         %...Generate command
-        commandString = ['cd ',adapt2UNIX(MRORepository),';',...
-            'mpirun -np 2 ',adapt2UNIX(SPARTAExec),' -in ',...
-            adapt2UNIX(MROInputFile)];
+        if useHostFile
+            commandString = ['cd ',adapt2UNIX(MRORepository),';',...
+                'mpirun -hostfile hostfile -np 4 ',adapt2UNIX(SPARTAExec),' -in ',...
+                adapt2UNIX(MROInputFile)];
+        else
+            commandString = ['cd ',adapt2UNIX(MRORepository),';',...
+                'mpirun -np 2 ',adapt2UNIX(SPARTAExec),' -in ',...
+                adapt2UNIX(MROInputFile)];
+        end
         
         %...Loop over altitudes
         status = cell(size(simAltRarefied));
@@ -239,13 +248,15 @@ clear commandString gasFractions fileID
 %   around each axis for whole spacecraft
 [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAreaNormal(points,triangles);
 if rotateMRO, referenceArea = 3; else, referenceArea = 1; end
+referenceLength = 2.5;
+momentArm = computeMomentArm(points,triangles);
 
 %...Compute same data only for solar panels
 [solarPanelTrianglesArea,solarPanelTrianglesNormal,solarPanelCrossSectionalArea] = ...
     computeTriangleAreaNormal(points,triangles(solarPanelElements.faces,:));
-momentArm = computeSolarPanelMomentArm(points,triangles(solarPanelElements.faces,:));
+momentArmSolarPanel = computeMomentArm(points,triangles(solarPanelElements.faces,:));
 
-%% Analyze SPARTA Results
+%% Analyze SPARTA Rarefied Results
 
 %...Get results for rarefied flow
 pressureCoeffRarefied = cell(length(simAnglesOfAttack),length(simAltRarefied));
@@ -271,8 +282,8 @@ for h = 1:length(simAltRarefied)
         averageDistribution = median(cat(3,distribution{3:end}),3);
         
         %...Compute bending moment
-        bendingMomentRarefied{a,h} = sum(cross(momentArm,(averageDistribution(solarPanelElements.faces,1:3) + ...
-            averageDistribution(solarPanelElements.faces,4:6)) .* solarPanelTrianglesArea));
+        bendingMomentRarefied{a,h} = sum(cross(momentArmSolarPanel,(averageDistribution(solarPanelElements.faces,1:3) + ...
+            averageDistribution(solarPanelElements.faces,4:6))) .* solarPanelTrianglesArea);
         
         %...Compute pressure and friction coefficients
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
@@ -282,15 +293,19 @@ for h = 1:length(simAltRarefied)
         
         %...Integrate to find force coefficients
         forceCoefficients = sum((pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}) .* ...
-            trianglesArea) ./ crossSectionalArea(referenceArea);
+            trianglesArea) / crossSectionalArea(referenceArea);
+        
+        %...Integrate to find moment coefficients
+        momentCoefficients = sum(cross(momentArm,pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}) .* ...
+            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
         
         %...Find side, drag and lift coefficients
         %   Note that a negative sign is added since aerodynamic forces are
         %   positive in the negative direction
-        aeroCoeffRarefied{a,h} = - forceCoefficients';
+        aeroCoeffRarefied{a,h} = - [forceCoefficients,momentCoefficients]';
     end
 end
-clear distribution files fileID result averageDistribution dynamicPressure forceCoefficients transformation
+clear distribution files fileID result averageDistribution dynamicPressure forceCoefficients momentCoefficients
 
 %% Compute Continuum Flow
 
@@ -340,20 +355,23 @@ for h = 1:length(simAltContinuum)
         
         %...Compute bending moment
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
-        bendingMomentContinuum{a,h} = sum(cross(momentArm,...
+        bendingMomentContinuum{a,h} = sum(cross(momentArmSolarPanel,...
             pressureCoeffContinuum{a,h}(solarPanelElements.faces,:) * ...
             dynamicPressure .* solarPanelTrianglesArea));
         
         %...Integrate to find force coefficients
-        %   Note that a negative sign is added since aerodynamic forces are
-        %   positive in the negative direction
         forceCoefficients = sum(pressureCoeffContinuum{a,h} .* trianglesArea) ./ crossSectionalArea(referenceArea);
         
+        %...Integrate to find moment coefficients
+        momentCoefficients = sum(cross(momentArm,pressureCoeffContinuum{a,h}) .* ...
+            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
+        
         %...Find aerodynamic coefficients
-        aeroCoeffContinuum{a,h} = transformation' * forceCoefficients'; % inverse rotation
+        aeroCoeffContinuum{a,h} = [ transformation' * forceCoefficients'; ...
+            transformation' * momentCoefficients']; % inverse rotation
     end
 end
-clear transformation V sineIncidenceAngle locPos locNeg forceCoefficients
+clear transformation V sineIncidenceAngle locPos locNeg forceCoefficients momentCoefficients
 
 %% Compute Transition Regime
 
@@ -416,10 +434,11 @@ fprintf(['Maximum bending moment in CONTINUUM flow: %.3f Nm.\n ',...
 
 %...Plot
 if showFigure
-    styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'}; labels = {'Drag','Side','Lift'};
+    styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
+    labels = {'Drag','Side','Lift','X-Moment','Y-Moment','Z-Moment'};
     if ~saveFigure
         %...Plot aerodynamic coefficients in 2D for rarefied and continuum flows
-        for i = 1:3
+        for i = 1:6
             figure('rend','painters','pos',figSizeSmall);
             hold on
             for h = 1:length(simAltitudes)
@@ -447,8 +466,9 @@ if showFigure
         grid on
         legend(split(num2str(simAltitudes)),'Location','Best')
     else
+        %%
         %...Plot aerodynamic coefficients in 2D for rarefied flow
-        for i = 1:3
+        for i = 1:6
             F = figure('rend','painters','pos',figSizeSmall);
             hold on
             for h = 2:length(simAltRarefied) % skip 100 km
@@ -457,13 +477,17 @@ if showFigure
             hold off
             xlabel('Angle of Attack [deg]')
             ylabel([labels{i},' Coefficient [-]'])
-            if i == 2
+            if i == 2 || i == 4
                 ylim([-1e-2,1e-2])
+            elseif i == 6
+                ylim([-1e-1,1e-1])
             end
             set(gca,'FontSize',15)
             grid on
             if i == 1
-                legend(split(num2str(simAltRarefied(2:end))),'Location','Best','Orientation','Horizontal')
+                legend(split(num2str(simAltRarefied(2:end))),'NumColumns',2,'Location','Best')
+            elseif i >= 4
+                legend(split(num2str(simAltRarefied(2:end))),'Location','SW')
             else
                 legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
             end
@@ -474,7 +498,7 @@ if showFigure
         F = figure('rend','painters','pos',figSizeSmall);
         yyaxis left
         plot(simAnglesOfAttack,cellfun(@(x)x(1),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
-        ylabel('Drag Coefficient [-]')
+        ylabel('Drag Coefficients [-]')
         yyaxis right
         plot(simAnglesOfAttack,cellfun(@(x)x(3),aeroCoeffContinuum(:,1)),styles{2},'LineWidth',1.25,'MarkerSize',10)
         ylabel('Lift Coefficient [-]')
@@ -482,31 +506,46 @@ if showFigure
         set(gca,'FontSize',15)
         grid on
         legend('Drag','Lift','Location','NW')
-        if saveFigure, saveas(F,'../../Report/figures/aero_cont_2d','epsc'), end
+        if saveFigure, saveas(F,'../../Report/figures/aero_cont_2d_force','epsc'), end
+        
+        F = figure('rend','painters','pos',figSizeSmall);
+        hold on
+        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+        hold off
+        xlabel('Angle of Attack [deg]')
+        ylabel('Moment Coefficient [-]')
+        set(gca,'FontSize',15)
+        grid on
+        if saveFigure, saveas(F,'../../Report/figures/aero_cont_2d_moment','epsc'), end
     end
     
-%     %...Plot aerodynamic coefficients in 3D against altitude
-%     for i = 1:2:3
-%         F = figure('rend','painters','pos',figSizeSmall);
-%         surf(simAnglesOfAttack,simAltTotal,cellfun(@(x)x(i),aeroCoeffTotal)')
-%         xlabel('Angle of Attack [deg]')
-%         ylabel('Altitude [km]')
-%         zlabel([labels{i},' Coefficient [-]'])
-%         set(gca,'FontSize',15)
-%         grid on
-%         if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
-%     end
-%     
-%     %...Plot aerodynamic coefficients in 3D against Knudsen number
-%     for i = 1:2:3
-%         F = figure('rend','painters','pos',figSizeSmall);
-%         surf(simAnglesOfAttack,interpolate(altitude,simAltitudes,MCD.knudsenNumber),cellfun(@(x)x(i),aeroCoefficients)')
-%         xlabel('Angle of Attack [deg]')
-%         ylabel('Knudsen Number [-]')
-%         zlabel([labels{i},' Coefficient [-]'])
-%         set(gca,'FontSize',15,'YScale','log')
-%         grid on
-%     end
+    %...Plot aerodynamic coefficients in 3D against altitude
+    for i = 1:2:6
+        F = figure('rend','painters','pos',figSizeSmall);
+        surf(simAnglesOfAttack,simAltTotal,cellfun(@(x)x(i),aeroCoeffTotal)')
+        xlabel('Angle of Attack [deg]')
+        ylabel('Altitude [km]')
+        zlabel([labels{i},' Coefficient [-]'])
+        set(gca,'FontSize',15)
+        grid on
+        if i == 5
+            view([-215,30])
+        else
+            view([-35,30])
+        end
+        if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
+    end
+    
+    %...Plot aerodynamic coefficients in 3D against Knudsen number
+    for i = 1:2:3
+        F = figure('rend','painters','pos',figSizeSmall);
+        surf(simAnglesOfAttack,interpolate(altitude,simAltitudes,MCD.knudsenNumber),cellfun(@(x)x(i),aeroCoefficients)')
+        xlabel('Angle of Attack [deg]')
+        ylabel('Knudsen Number [-]')
+        zlabel([labels{i},' Coefficient [-]'])
+        set(gca,'FontSize',15,'YScale','log')
+        grid on
+    end
 end
 
 %% Validation
@@ -576,7 +615,7 @@ if showFigure
     xlabel('Angle of Attack [deg]')
     ylabel('Bending Moment [N m]')
     set(gca,'FontSize',15)
-    legend('x_B axis','y_B axis','z_B axis','Magnitude','Location','Best')
+    legend({'x_B axis','y_B axis','z_B axis','Magnitude'},'NumColumns',2,'Location','Best')%,'Location',[0.5,0.5,0.1,0.15])%
     grid on
     if saveFigure, saveas(F,'../../Report/figures/bend_rare_max','epsc'), 
     else, title('Rarefied at 100 km'); end
@@ -595,36 +634,46 @@ end
 %% Plot Pressure Distributions
 
 %...Create triangulation
-Tri = [];
 Tri.vertices = points;
 Tri.faces = triangles;
+
+%...Angle to show
+a = length(simAnglesOfAttack);
 
 %...Plot
 if showFigure
     %...Plot triangulation for rarefied flow
-    titles = {'Pressure','Shear'};
+    titles = {'Pressure','Friction','Moment'};
+    color = {sqrt(sum(pressureCoeffRarefied{a,1}.^2,2)),...
+        sqrt(sum(frictionCoeffRarefied{a,1}.^2,2)),...
+        sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,1} + frictionCoeffRarefied{a,1}).^2,2))};
     F = figure('rend','painters','pos',figSizeLarge);
-    j = 0;
-    color = {sqrt(sum(pressureCoeffRarefied{1,1}.^2,2)),sqrt(sum(frictionCoeffRarefied{1,1}.^2,2))};
-    for i = 1:2
-        j = j+1;
-        subplot(1,2,j)
+    for i = 1:length(color)
+        subplot(1,length(color),i)
         Tri.facevertexcdata = color{i};
         patch(Tri), shading faceted, colormap jet
-        c = colorbar; c.Label.String = 'Pa'; c.Location = 'southoutside';
+        c = colorbar; c.Label.String = '-'; c.Location = 'southoutside';
         set(gca,'FontSize',15), view([127.5,30])
         axis off tight equal
-        title([num2str(simAnglesOfAttack(1)),' deg'])
+        title(titles{i})
     end
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
     
     %...Plot triangulation for continuum flow
+    titles = {'Pressure','Moment'};
+    color = {sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
+        sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
     F = figure('rend','painters','pos',figSizeLarge);
-    Tri.facevertexcdata = log10(sqrt(sum(pressureCoeffContinuum{1,1}.^2,2)));
-    patch(Tri), shading faceted, colormap jet
-    c = colorbar; c.Label.String = 'log_{10}(Pa)'; c.Location = 'southoutside';
-    set(gca,'FontSize',15), view([127.5,30])
-    axis off tight equal
-    title([num2str(simAnglesOfAttack(1)),' deg'])
+    for i = 1:length(color)
+        subplot(1,length(color),i)
+        Tri.facevertexcdata = color{i};
+        patch(Tri), shading faceted, colormap jet
+        c = colorbar; c.Label.String = '-'; c.Location = 'southoutside';
+        set(gca,'FontSize',15), view([127.5,30])
+        axis off tight equal
+        title(titles{i})
+    end
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
 end
 clear F j color c
 
@@ -656,29 +705,11 @@ end
 
 %...Save to file
 if saveTable
-    %...Pad arrays with zeros for altitudes beyond simulated ones
-    numberToPad = 10;
-    altitudePad = logspace(log10(simAltitudes(end)),log10(500000),numberToPad);
-    simAltitudesPadded = horzcat(simAltitudes,altitudePad(2:end));
-    coefficientPad = cell(length(simAnglesOfAttack),numberToPad-1);
-    
-    %...Extract mean coefficients
-    meanDragCoefficients = mean(cellfun(@(x)x(1),aeroCoefficients),2);
-    meanLiftCoefficients = mean(cellfun(@(x)x(3),aeroCoefficients),2);
-    for i = 1:size(coefficientPad,1)
-        for j = 1:size(coefficientPad,2)
-            coefficientPad{i,j} = vertcat(meanDragCoefficients(i),0,meanLiftCoefficients(i));
-        end
-    end
-    
-    %...Pad coefficients
-    aeroCoefficientsPadded = horzcat(aeroCoefficients,coefficientPad);
-    
     %...File names
-    coefficient = {'MRODragCoefficients.txt','','MROLiftCoefficients.txt'};
+    coefficient = {'MRODragCoefficients.txt','','MROLiftCoefficients.txt','','MROMomentCoefficients.txt',''};
     
     %...Loop over settings
-    for i = 1:2:3
+    for i = 1:2:6
         %...Set file name and open
         fileName = ['/Users/Michele/Library/Mobile Documents/com~apple~CloudDocs/',...
             'University/Master Thesis/Code/MATLAB/data/',coefficient{i}];
@@ -690,18 +721,22 @@ if saveTable
         
         %...Add independent variables
         fprintf(fileID,[repmat('%.10f\t ',[1,length(simAnglesOfAttack)]),'\n'],deg2rad(simAnglesOfAttack));
-        fprintf(fileID,[repmat('%.3f\t ',[1,length(simAltitudesPadded)]),'\n'],simAltitudesPadded*1e3);
+        fprintf(fileID,[repmat('%.3f\t ',[1,length(simAltitudes)]),'\n'],simAltitudes*1e3);
         fprintf(fileID,'\n'); % separator
         
         %...Add coefficients
         for j = 1:length(simAnglesOfAttack)
-            fprintf(fileID,[repmat('%.6f\t ',[1,length(simAltitudesPadded)]),'\n'],cellfun(@(x)x(i),aeroCoefficientsPadded(j,:)));
+            fprintf(fileID,[repmat('%.6f\t ',[1,length(simAltitudes)]),'\n'],cellfun(@(x)x(i),aeroCoefficients(j,:)));
         end
         
         %...Close file
         fclose(fileID);
     end
 end
+
+%% Close All Figures
+
+close all;
 
 %% Supporting Functions
 
@@ -733,7 +768,7 @@ function [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAre
     crossSectionalArea = 0.5 * sum(abs(trianglesNormal) .* trianglesArea);
 end
 
-function momentArm = computeSolarPanelMomentArm(points,triangles)
+function momentArm = computeMomentArm(points,triangles)
     %...Function handle for surface normal
     centroid = @(p) [sum(p(:,1)),sum(p(:,2)),sum(p(:,3))]/3;
 
@@ -745,5 +780,5 @@ function momentArm = computeSolarPanelMomentArm(points,triangles)
     trianglesCentroid = cell2mat(trianglesCentroid);
     
     %...Find distance to center
-    momentArm = trianglesCentroid - [0,1.25,0];
+    momentArm = trianglesCentroid - [0,0,1.25+0.1375];
 end
