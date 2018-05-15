@@ -22,8 +22,8 @@ end
 %...Figures and tables setting
 saveTable = false;
 showFigure = true;
-saveFigure = true;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
+saveFigure = false;
+[figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Host file settings
 useHostFile = false; % run SPARTA simulation with 4 cores (slows down computer a lot)
@@ -52,7 +52,7 @@ MCDData = fullfile(SPARTARepository,'MCDEnvir');
 %% Spacecraft Model
 
 %...Compute model based on MRO discretization
-[MROExtent,points,triangles,solarPanelElements] = ...
+[MROExtent,points,triangles,solarPanelElements,antennaElement] = ...
     SPARTAModel(MRODataFile,rotateMRO,showFigure,false); % output min and max dimensions of MRO
 
 %...Add more space in x-direction
@@ -249,12 +249,14 @@ clear commandString gasFractions fileID
 [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAreaNormal(points,triangles);
 if rotateMRO, referenceArea = 3; else, referenceArea = 1; end
 referenceLength = 2.5;
-momentArm = computeMomentArm(points,triangles);
+centerOfMass = [0,0,1.25+0.1375];
+momentArm = computeMomentArm(points,triangles,centerOfMass);
 
 %...Compute same data only for solar panels
 [solarPanelTrianglesArea,solarPanelTrianglesNormal,solarPanelCrossSectionalArea] = ...
     computeTriangleAreaNormal(points,triangles(solarPanelElements.faces,:));
-momentArmSolarPanel = computeMomentArm(points,triangles(solarPanelElements.faces,:));
+solarPanelAttachmentPoint = [0,1.25,0];
+momentArmSolarPanel = computeMomentArm(points,triangles(solarPanelElements.faces,:),solarPanelAttachmentPoint);
 
 %% Analyze SPARTA Rarefied Results
 
@@ -365,6 +367,9 @@ for h = 1:length(simAltContinuum)
         %...Integrate to find moment coefficients
         momentCoefficients = sum(cross(momentArm,pressureCoeffContinuum{a,h}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
+%         momentCoefficients = sum(cross(computeMomentArm(points,triangles(~antennaElement.faces,:),zeros(1,3)), ...
+%             pressureCoeffContinuum{a,h}(~antennaElement.faces,:)) .* ...
+%             trianglesArea(~antennaElement.faces,:)) / crossSectionalArea(referenceArea) / referenceLength;
         
         %...Find aerodynamic coefficients
         aeroCoeffContinuum{a,h} = [ transformation' * forceCoefficients'; ...
@@ -480,7 +485,7 @@ if showFigure
             if i == 2 || i == 4
                 ylim([-1e-2,1e-2])
             elseif i == 6
-                ylim([-1e-1,1e-1])
+                ylim([-1e-2,1e-2])%ylim([-1e-1,1e-1])
             end
             set(gca,'FontSize',15)
             grid on
@@ -493,7 +498,31 @@ if showFigure
             end
             if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{i})],'epsc'), end
         end
-        
+        %%
+        F = figure('rend','painters','pos',figSizeSmall);
+        hold on
+        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffRarefied(:,2)), ...
+            styles{1},'LineWidth',1.25,'MarkerSize',10) % full moment
+        plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to pressure only
+            arrayfun(@(a)-sum(cross(momentArm,pressureCoeffRarefied{a,2}) .* ...
+            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
+            1:length(simAnglesOfAttack),'UniformOutput',false)...
+            ), ...
+            styles{2},'LineWidth',1.25,'MarkerSize',10)
+        plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to friction only
+            arrayfun(@(a)-sum(cross(momentArm,frictionCoeffRarefied{a,2}) .* ...
+            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
+            1:length(simAnglesOfAttack),'UniformOutput',false)...
+            ), ...
+            styles{3},'LineWidth',1.25,'MarkerSize',10)
+        hold off
+        xlabel('Angle of Attack [deg]')
+        ylabel([labels{5},' Coefficient [-]'])
+        set(gca,'FontSize',15)
+        grid on
+        legend('Combined','Pressure','Shear','Location','SW')
+        if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{5}),'_split'],'epsc'), end
+        %%
         %...Plot aerodynamic coefficients in 2D for continuum flow
         F = figure('rend','painters','pos',figSizeSmall);
         yyaxis left
@@ -534,17 +563,6 @@ if showFigure
             view([-35,30])
         end
         if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
-    end
-    
-    %...Plot aerodynamic coefficients in 3D against Knudsen number
-    for i = 1:2:3
-        F = figure('rend','painters','pos',figSizeSmall);
-        surf(simAnglesOfAttack,interpolate(altitude,simAltitudes,MCD.knudsenNumber),cellfun(@(x)x(i),aeroCoefficients)')
-        xlabel('Angle of Attack [deg]')
-        ylabel('Knudsen Number [-]')
-        zlabel([labels{i},' Coefficient [-]'])
-        set(gca,'FontSize',15,'YScale','log')
-        grid on
     end
 end
 
@@ -639,43 +657,78 @@ Tri.faces = triangles;
 
 %...Angle to show
 a = length(simAnglesOfAttack);
+h = 1;
 
 %...Plot
 if showFigure
     %...Plot triangulation for rarefied flow
-    titles = {'Pressure','Friction','Moment'};
-    color = {sqrt(sum(pressureCoeffRarefied{a,1}.^2,2)),...
-        sqrt(sum(frictionCoeffRarefied{a,1}.^2,2)),...
-        sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,1} + frictionCoeffRarefied{a,1}).^2,2))};
-    F = figure('rend','painters','pos',figSizeLarge);
-    for i = 1:length(color)
-        subplot(1,length(color),i)
-        Tri.facevertexcdata = color{i};
-        patch(Tri), shading faceted, colormap jet
-        c = colorbar; c.Label.String = '-'; c.Location = 'southoutside';
-        set(gca,'FontSize',15), view([127.5,30])
-        axis off tight equal
-        title(titles{i})
+    if ~saveFigure
+        titles = {'Pressure','Friction','Moment','Pressure','','Moment'};
+        color = {sqrt(sum(pressureCoeffRarefied{a,h}.^2,2)),...
+            sqrt(sum(frictionCoeffRarefied{a,h}.^2,2)),...
+            sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}).^2,2)), ...
+            sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
+            NaN, ...
+            sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
+        F = figure('rend','painters','pos',figSizeLarge);
+        for i = 1:length(color)
+            if i ~= 5
+                subplot(2,3,i)
+                Tri.facevertexcdata = color{i};
+                patch(Tri), shading faceted, colormap jet
+                c = colorbar; c.Location = 'southoutside';
+                set(gca,'FontSize',15), view([127.5,30])
+                axis off tight equal
+                title(titles{i})
+            end
+        end
+        subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
+    else
+        
     end
-    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
-    
-    %...Plot triangulation for continuum flow
-    titles = {'Pressure','Moment'};
-    color = {sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
-        sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
-    F = figure('rend','painters','pos',figSizeLarge);
-    for i = 1:length(color)
-        subplot(1,length(color),i)
-        Tri.facevertexcdata = color{i};
-        patch(Tri), shading faceted, colormap jet
-        c = colorbar; c.Label.String = '-'; c.Location = 'southoutside';
-        set(gca,'FontSize',15), view([127.5,30])
-        axis off tight equal
-        title(titles{i})
-    end
-    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
 end
 clear F j color c
+
+%% Compute Moment Coefficient Without Antenna
+
+%...Disclaimer:
+%   The way the moment coefficient without antenna is computed, is by
+%   removing the pressure and shear coefficients of the panels
+%   corresponding to the antenna. Thus, effects of the presence of the
+%   antenna will not be removed, and the resulting coefficients do NOT
+%   equal the ones that would result from a SPARTA simulation without the
+%   antenna.
+
+%...Take 125 km as reference
+h = 2;
+
+%...Loop over angles of attack
+momentCoefficientNoAntenna = cell(1,length(simAnglesOfAttack));
+for a = 1:length(simAnglesOfAttack)
+    %...Retrieve pressure and shear coefficients (except antenna)
+    forceValues = pressureCoeffRarefied{a,h}(~antennaElement.faces,:) + ...
+        frictionCoeffRarefied{a,h}(~antennaElement.faces,:);
+    
+    %...Compute moment coefficient
+    momentCoefficientNoAntenna{a} = - sum(cross(computeMomentArm(points,triangles(~antennaElement.faces,:),zeros(1,3)), ...
+        forceValues) .* trianglesArea(~antennaElement.faces,:) ) / ...
+        crossSectionalArea(referenceArea) / referenceLength;
+end
+
+%...Plot results
+if showFigure
+    %...Plot aerodynamic coefficients in 2D for rarefied flow
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffRarefied(:,h)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+    plot(simAnglesOfAttack,cellfun(@(x)x(2),momentCoefficientNoAntenna),styles{2},'LineWidth',1.25,'MarkerSize',10)
+    hold off
+    xlabel('Angle of Attack [deg]')
+    ylabel('Y-Moment Coefficient [-]')
+    legend('Nominal','No Antenna')
+    set(gca,'FontSize',15)
+    grid on
+end
 
 %% GIF Commands
 
@@ -768,7 +821,7 @@ function [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAre
     crossSectionalArea = 0.5 * sum(abs(trianglesNormal) .* trianglesArea);
 end
 
-function momentArm = computeMomentArm(points,triangles)
+function momentArm = computeMomentArm(points,triangles,referencePoint)
     %...Function handle for surface normal
     centroid = @(p) [sum(p(:,1)),sum(p(:,2)),sum(p(:,3))]/3;
 
@@ -780,5 +833,5 @@ function momentArm = computeMomentArm(points,triangles)
     trianglesCentroid = cell2mat(trianglesCentroid);
     
     %...Find distance to center
-    momentArm = trianglesCentroid - [0,0,1.25+0.1375];
+    momentArm = trianglesCentroid - referencePoint;
 end

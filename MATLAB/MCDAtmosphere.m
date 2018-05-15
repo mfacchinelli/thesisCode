@@ -14,8 +14,8 @@ else, folder = 'MCD'; end
 
 genTable = true;
 plotResults = true;
-saveFigures = false;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigures);
+saveFigures = true;
+[figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
 
@@ -257,7 +257,7 @@ if fullDatabase
     
     if plotResults
         %...Plot gas percentage
-        F = figure('rend','painters','pos',figSizeSmall);
+        F = figure('rend','painters','pos',figSizeMedium);
         styles = repmat({'-',':','--','-.'},[1,3]);
         hold on
         for g = 1:G
@@ -266,7 +266,7 @@ if fullDatabase
         hold off
         xlabel('Altitude [km]')
         ylabel('Gas Fraction [-]')
-        legend(gasStr,'NumColumns',2,'Location','Best')
+        legend(gasStr,'Location','Best')
         set(gca,'FontSize',15,'XScale','log','YScale','log')
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
@@ -275,7 +275,7 @@ if fullDatabase
         else, saveas(F,'../../Report/figures/mars_atm_comp','epsc'), end
         
         %...Plot molar mass and collision diameter
-        F = figure('rend','painters','pos',figSizeSmall);
+        F = figure('rend','painters','pos',figSizeMedium);
         yyaxis left
         hold on
         plot(hs,molarMassLatLonTimeAvg*1e3,'LineWidth',1.75)
@@ -296,7 +296,7 @@ if fullDatabase
         else, saveas(F,'../../Report/figures/mars_atm_mol','epsc'), end
         
         %...Plot number density and Knudsen
-        F = figure('rend','painters','pos',figSizeSmall);
+        F = figure('rend','painters','pos',figSizeMedium);
         yyaxis left
         loglog(hs,numberDensity,'LineWidth',1.75)
         ylabel('Number Density [-]')

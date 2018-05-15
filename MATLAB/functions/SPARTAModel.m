@@ -1,4 +1,5 @@
-function [MROExtent,points,connectivity,solarPanelElements] = SPARTAModel(MRODataFile,rotateMRO,showFigure,saveFigure)
+function [MROExtent,points,connectivity,solarPanelElements,antennaElement] = ...
+    SPARTAModel(MRODataFile,rotateMRO,showFigure,saveFigure)
 %% Verification Settings
 
 %...Toggle verification
@@ -92,6 +93,10 @@ Tri.facevertexcdata = Tri.faces(:,3);
 %...Get solar panel elements
 solarPanelElements.vertices = ismember(Tri.vertices,Tri_sa1.vertices,'rows');
 solarPanelElements.faces = all(ismember(Tri.faces,find(solarPanelElements.vertices)),2);
+
+%...Get antenna elements
+antennaElement.vertices = ismember(Tri.vertices,Tri_ant.vertices,'rows');
+antennaElement.faces = all(ismember(Tri.faces,find(antennaElement.vertices)),2);
 
 %...Shift position to center of bus
 center = L_bus/2*[1,-1,1];

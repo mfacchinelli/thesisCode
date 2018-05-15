@@ -6,14 +6,14 @@ addpath tests data functions
 %...Figure settings
 plotAllFigures = false;
 saveFigure = false;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
+[figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigure);
 
 %...Result repository
-TudatApplicationOutput = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/';
-repository = [TudatApplicationOutput,'Propagators'];
+TudatApplicationOutput = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput';
+repository = fullfile(TudatApplicationOutput,'Propagators');
 
 %...Select test case
-testCase = 0;
+testCase = 1;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;
@@ -25,7 +25,7 @@ switch testCase
         repository = fullfile(repository,'aero');
     case 1 % full aerobraking
         R = 3.396e3;
-        simulationDuration = 100;
+        simulationDuration = 55;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 100;
@@ -160,18 +160,20 @@ for j = 1:length(integrators)
 end
 clear fileName fileID k kepler cartesian evaluations time
 
-F = figure('rend','painters','pos',figSizeLarge);
-yyaxis right
-scatter(results(end,1).timeOut(1:end-1),results(end,1).evaluations,35,'filled')
-ylabel('Evaluations [-]')
-yyaxis left
-plot(results(end,1,1).timeOut(1:end-1),diff(results(end,1,1).timeOut)*scaling,'LineWidth',1.1)
-ylabel('Time Step [s]')
-xlabel(timeLabel)
-grid on
-set(gca,'FontSize',15,'YScale','log')
-if saveFigure, %saveas(F,['../../Report/figures/ref_dt_',testCase],'epsc'),
-else, title('Reference'), end
+if plotAllFigures
+    F = figure('rend','painters','pos',figSizeLarge);
+    yyaxis right
+    scatter(results(end,1).timeOut(1:end-1),results(end,1).evaluations,35,'filled')
+    ylabel('Evaluations [-]')
+    yyaxis left
+    plot(results(end,1,1).timeOut(1:end-1),diff(results(end,1,1).timeOut)*scaling,'LineWidth',1.1)
+    ylabel('Time Step [s]')
+    xlabel(timeLabel)
+    grid on
+    set(gca,'FontSize',15,'YScale','log')
+    if saveFigure, %saveas(F,['../../Report/figures/ref_dt_',testCase],'epsc'),
+    else, title('Reference'), end
+end
 
 %% Plot Reference Trajectory
 
@@ -348,7 +350,7 @@ end
 styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
 
 %...Plot RMS error for variable step size
-F = figure('rend','painters','pos',figSizeSmall);
+F = figure('rend','painters','pos',figSizeMedium);
 hold on
 for i = 1:length(propagators)-1
     plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values(1)),squeeze(rmsError(i,4,1,1:values(1)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
@@ -362,7 +364,7 @@ grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_var_',num2str(testCase)],'epsc'), end
     
 %...Plot RMS error for constant step size
-F = figure('rend','painters','pos',figSizeSmall);
+F = figure('rend','painters','pos',figSizeMedium);
 hold on
 for i = 1:length(propagators)-1
     plot(constantStepSizes,squeeze(rmsError(i,4,2,1:values(2)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)

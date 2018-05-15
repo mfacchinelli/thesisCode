@@ -11,7 +11,7 @@ mu = 4.282e13;
 clc;
 
 %...Elliptical orbit
-periapsis = 110e3+radius;
+periapsis = 150e3+radius;
 apoapsis = 47500e3+radius;
 % periapsis = 200e3+radius;
 % apoapsis = 250e3+radius;
@@ -60,15 +60,15 @@ fprintf('Apoapsis: %f\n',ra)
 
 start = 5950;
 stop = 6450;
-% start = 1;
-% stop = 18884;
+start = 1;
+stop = 18802;
 % start = 1;
 % stop = 518401;
 
 %...Get orbital data
 fileID = fopen('/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/Aerobraking/orbit.dat');
 orbit = textscan(fileID,repmat('%f ',[1,7]),'CollectOutput',true,'Delimiter',',');
-time = (orbit{1}(start:stop,1)-orbit{1}(1))/3600; orbit = orbit{1}(start:stop,2:end);
+time = (orbit{1}(start:stop,1)-orbit{1}(1))/3600/24; orbit = orbit{1}(start:stop,2:end);
 orbit(:,1) = orbit(:,1)/1e3; orbit(:,3:end) = rad2deg(orbit(:,3:end));
 fclose(fileID);
 

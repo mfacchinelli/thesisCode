@@ -17,7 +17,7 @@ mode = 'speedRatio'; % 'sphere' or 'speedRatio'
 %...Figures setting
 showFigure = true;
 saveFigure = false;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
+[figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...SPARTA
 SPARTAExec = '/Users/Michele/AE Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable

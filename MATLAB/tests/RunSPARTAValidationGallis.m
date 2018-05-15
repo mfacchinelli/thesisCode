@@ -14,7 +14,7 @@ setenv('DYLD_LIBRARY_PATH','$MAGICK_HOME/ImageMagick-7.0.7/lib/')
 %...Figures and tables setting
 showFigure = true;
 saveFigure = false;
-[figSizeLarge,figSizeSmall] = saveFigureSettings(saveFigure);
+[figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...SPARTA
 SPARTAExec = '/Users/Michele/AE Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
