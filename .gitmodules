@@ -1,3 +1,6 @@
 [submodule "Tudat"]
 	path = Tudat
 	url = https://github.com/mfacchinelli/tudatTesting
+[submodule "Thesis Project"]
+	path = Thesis Project
+	url = /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis
