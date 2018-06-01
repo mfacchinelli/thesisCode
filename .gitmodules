@@ -3,4 +3,4 @@
 	url = https://github.com/mfacchinelli/tudatTesting
 [submodule "Thesis Project"]
 	path = Thesis Project
-	url = ../thesisProject.git
+	url = https://github.com/mfacchinelli/thesisProject
