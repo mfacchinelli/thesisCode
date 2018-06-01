@@ -14,7 +14,7 @@ tabularTimeAvgFull = MCD.tabular_interp;
 clc;
 
 %...Get conditions
-mode = 3;
+mode = 0;
 switch mode
     case 0
         altitudeInput = altitude(1);

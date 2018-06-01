@@ -5,35 +5,41 @@ addpath tests data functions
 
 %...Figure settings
 plotAllFigures = false;
-saveFigure = false;
-[figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigure);
+saveFigure = true;
+[figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Result repository
 TudatApplicationOutput = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput';
 repository = fullfile(TudatApplicationOutput,'Propagators');
 
 %...Select test case
-testCase = 1;
+%	0: Aerocapture
+%	1: Full aerobraking
+% 	2: Interplanetary trajectory
+%	3: Circular orbit at LEO (Low Earth Orbit)
+% 	4: Molniya orbit
+%	5: Low-thrust trajectory
+testCase = 4;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;
-        simulationDuration = 15;
+        simulationDuration = 0.625;
         scaling = 3600;
         timeLabel = 'Time [h]';
         timeStepSeconds = 10;
-        constantStepSizes = [1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0];
+        constantStepSizes = [0.1, 1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0];
         repository = fullfile(repository,'aero');
     case 1 % full aerobraking
         R = 3.396e3;
-        simulationDuration = 55;
+        simulationDuration = 145.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 100;
-        constantStepSizes = [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 300.0];
+        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
         repository = fullfile(repository,'aero_full');
     case 2 % interplanetary trajectory
         R = 695.508e3;
-        simulationDuration = 50;
+        simulationDuration = 50.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 100;
@@ -44,17 +50,25 @@ switch testCase
         simulationDuration = 10.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
-        timeStepSeconds = 100;
-        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
+        timeStepSeconds = 50;
+        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0];%, 250.0, 300.0];
         repository = fullfile(repository,'circ');
     case 4 % Molniya orbit
         R = 6378.1363;
         simulationDuration = 25.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
-        timeStepSeconds = 100;
+        timeStepSeconds = 50;
         constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
         repository = fullfile(repository,'moln');
+    case 5 % low-thurst orbit
+        R = 6378.1363;
+        simulationDuration = 10.0;
+        scaling = 24*3600;
+        timeLabel = 'Time [day]';
+        timeStepSeconds = 50;
+        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
+        repository = fullfile(repository,'low_thrust');
 end
 
 values = [7,length(constantStepSizes)];
@@ -350,7 +364,7 @@ end
 styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
 
 %...Plot RMS error for variable step size
-F = figure('rend','painters','pos',figSizeMedium);
+F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:length(propagators)-1
     plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values(1)),squeeze(rmsError(i,4,1,1:values(1)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
@@ -364,7 +378,7 @@ grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_var_',num2str(testCase)],'epsc'), end
     
 %...Plot RMS error for constant step size
-F = figure('rend','painters','pos',figSizeMedium);
+F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:length(propagators)-1
     plot(constantStepSizes,squeeze(rmsError(i,4,2,1:values(2)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)

@@ -11,7 +11,7 @@ mu = 4.282e13;
 clc;
 
 %...Elliptical orbit
-periapsis = 150e3+radius;
+periapsis = 165e3+radius;
 apoapsis = 47500e3+radius;
 % periapsis = 200e3+radius;
 % apoapsis = 250e3+radius;
@@ -46,8 +46,8 @@ sqrt(mu*(2/(a*(1-1.2))-1/a))
 clc;
 
 %...Elliptical orbit
-semiMajorAxis = 27197250;
-eccentricity = 0.871366;
+semiMajorAxis = 31241000;
+eccentricity = 0.89;
 
 rp = (semiMajorAxis*(1-eccentricity) - radius)/1e3;
 ra = (semiMajorAxis*(1+eccentricity) - radius)/1e3;

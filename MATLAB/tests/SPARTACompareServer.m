@@ -1,5 +1,5 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
-addpath functions
+addpath functions tests
 
 %% SPARTA and Modeling Variables
 
@@ -7,7 +7,7 @@ addpath functions
 %       1: both real2sim and gridSpacing
 %       2: only real2sim
 %       3: only gridSpacing
-testCase = 2;
+testCase = 1;
 
 %...Figures and tables setting
 showFigure = true;
@@ -23,9 +23,9 @@ MRORepository = fullfile(SPARTARepository,'mro'); % path to MRO folder
 OutputRepositoryLocal = fullfile(MRORepository,repositoryLocal,'data'); % path to SPARTA local results
 switch testCase % path to SPARTA server results
     case 1
-        OutputRepositoryServer = fullfile(MRORepository,repositoryServer,'data_r2s_grid');
+        OutputRepositoryServer = fullfile(MRORepository,repositoryServer,'data_both');
     case 2
-        OutputRepositoryServer = fullfile(MRORepository,repositoryServer,'data_r2s');
+        OutputRepositoryServer = fullfile(MRORepository,repositoryServer,'data_ratio');
     case 3
         OutputRepositoryServer = fullfile(MRORepository,repositoryServer,'data_grid');
 end
@@ -45,7 +45,7 @@ MCDData = fullfile(SPARTARepository,'MCDEnvir');
 %% Constants
 
 %...Simulation conditions
-simAnglesOfAttack = linspace(-30,30,13); % angles of attack for simulation
+simAnglesOfAttack = -30:5:30; % angles of attack for simulation
 %[linspace(-75,-30,4),linspace(-25,25,11),linspace(30,75,4)];
 simAltitudes = 125; % altitudes for rarefied regime simulations
 
@@ -213,7 +213,7 @@ if showFigure
     %...Plot aerodynamic coefficients in 2D for rarefied flow
     styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
     labels = {'Drag','Side','Lift','X-Moment','Y-Moment','Z-Moment'};
-    locations = {'NE','','SE','','NE',''};
+    locations = {'NE','','SE','','NE','NW'};
     for i = [1:2:5,6]
         F = figure('rend','painters','pos',figSizeSmall);
         hold on
@@ -226,9 +226,12 @@ if showFigure
         hold off
         xlabel('Angle of Attack [deg]')
         ylabel([labels{i},' Coefficient [-]'])
+        if i == 6
+            ylim([-1e-2,1e-2])
+        end
+        legend('Nominal','Accurate','Location',locations{i})
         set(gca,'FontSize',15)
         grid on
-        legend('Nominal','Accurate','Location',locations{i})
         if saveFigure, saveas(F,['../../Report/figures/aero_server_',num2str(testCase),...
                 '_',lower(labels{i})],'epsc'), end
     end
@@ -242,8 +245,8 @@ Tri.faces = triangles;
 
 %...Angle to show
 angles = [1,find(simAnglesOfAttack==0,1)];
-pressure = pressureCoeffServer;
-friction = frictionCoeffServer;
+% pressure = pressureCoeffServer;
+% friction = frictionCoeffServer;
 pressure = pressureCoeffLocal;
 friction = frictionCoeffLocal;
 if saveFigure
@@ -262,18 +265,22 @@ if showFigure
             sqrt(sum(friction{a,h}.^2,2)) .* trianglesArea / crossSectionalArea(referenceArea),...
             sqrt(sum(cross(momentArm,pressure{a,h} + friction{a,h}).^2,2)) .* ...
             trianglesArea / crossSectionalArea(referenceArea) / referenceLength};
+%         color = {sqrt(sum(pressure{a,h}.^2,2)),...
+%             sqrt(sum(friction{a,h}.^2,2)),...
+%             sqrt(sum(cross(momentArm,pressure{a,h} + friction{a,h}).^2,2))};
         F = figure('rend','painters','pos',figSizeLarge);
         for i = 1:length(color)
             for j = 1:3
                 subplot(length(color),3,(i-1)*3 + j)
                 Tri.facevertexcdata = color{i};
-                patch(Tri), shading faceted, colormap jet
+                patch(Tri,'LineStyle','none'), shading faceted, colormap jet
                 c = colorbar; c.Location = 'southoutside';
                 set(gca,'FontSize',15), view(views{j})
                 axis off tight equal
             end
         end
-        if saveFigure, saveas(F,['../../Report/figures/aero_color_',num2str(a)],'epsc'), end
+        if saveFigure, saveas(F,['../../Report/figures/aero_color_',num2str(a)],'epsc'),
+        else, subplotTitle([num2str(simAnglesOfAttack(a)),' deg']), end
     end
 end
 clear F j color c

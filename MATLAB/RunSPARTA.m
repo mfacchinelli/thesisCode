@@ -29,7 +29,7 @@ saveFigure = false;
 useHostFile = false; % run SPARTA simulation with 4 cores (slows down computer a lot)
 
 %...SPARTA
-SPARTAExec = '/Users/Michele/AE Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
+SPARTAExec = '/Users/Michele/Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
 
 %...Repositories
 SPARTARepository = ['/Users/Michele/Library/Mobile Documents/com~apple~CloudDocs/University/Master ',...
@@ -71,7 +71,7 @@ MarsRadius = 3.390e6;
 %...Grid specifications
 gridSpacing = 0.25; % grid size
 simGrid = diff(MROExtent,[],2)/gridSpacing;
-r2sOffset = 17.5; % number of simulated particles per cell
+r2sOffset = 20; % number of simulated particles per cell
 
 %...Simulation conditions
 simAnglesOfAttack = linspace(-30,30,13); % angles of attack for simulation
@@ -249,8 +249,8 @@ clear commandString gasFractions fileID
 [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAreaNormal(points,triangles);
 if rotateMRO, referenceArea = 3; else, referenceArea = 1; end
 referenceLength = 2.5;
-centerOfMass = [0,0,1.25+0.1375];
-momentArm = computeMomentArm(points,triangles,centerOfMass);
+centerOfMass = [0,0,0.1375];
+[momentArm,trianglesCentroid] = computeMomentArm(points,triangles,centerOfMass);
 
 %...Compute same data only for solar panels
 [solarPanelTrianglesArea,solarPanelTrianglesNormal,solarPanelCrossSectionalArea] = ...
@@ -284,8 +284,13 @@ for h = 1:length(simAltRarefied)
         averageDistribution = median(cat(3,distribution{3:end}),3);
         
         %...Compute bending moment
-        bendingMomentRarefied{a,h} = sum(cross(momentArmSolarPanel,(averageDistribution(solarPanelElements.faces,1:3) + ...
-            averageDistribution(solarPanelElements.faces,4:6))) .* solarPanelTrianglesArea);
+        solarPanelDistribution = averageDistribution(solarPanelElements.faces,1:3) + ...
+            averageDistribution(solarPanelElements.faces,4:6);
+        rotatedDistribution = arrayfun(@(i)roty(simAnglesOfAttack(a))' * ...
+            solarPanelDistribution(i,:)',...
+            1:size(solarPanelDistribution,1),'UniformOutput',false);
+        bendingMomentRarefied{a,h} = sum(cross(momentArmSolarPanel,...
+            [rotatedDistribution{:}]') .* solarPanelTrianglesArea);
         
         %...Compute pressure and friction coefficients
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
@@ -307,7 +312,8 @@ for h = 1:length(simAltRarefied)
         aeroCoeffRarefied{a,h} = - [forceCoefficients,momentCoefficients]';
     end
 end
-clear distribution files fileID result averageDistribution dynamicPressure forceCoefficients momentCoefficients
+clear distribution files fileID result averageDistribution solarPanelDistribution rotatedDistribution ...
+    dynamicPressure forceCoefficients momentCoefficients
 
 %% Compute Continuum Flow
 
@@ -341,7 +347,7 @@ for h = 1:length(simAltContinuum)
     for a = 1:length(simAnglesOfAttack)
         %...Find velocity vector at angle of attack
         %   Note that MATLAB has a different definition of positive rotations
-        transformation = roty(simAnglesOfAttack(a)); % inverse rotation
+        transformation = roty(simAnglesOfAttack(a));
         V = transformation * velocityVector;
         
         %...Find incidence angle
@@ -357,9 +363,16 @@ for h = 1:length(simAltContinuum)
         
         %...Compute bending moment
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
+        solarPanelDistribution = pressureCoeffContinuum{a,h}(solarPanelElements.faces,:);
+        rotatedDistribution = arrayfun(@(i)roty(simAnglesOfAttack(a))' * ...
+            solarPanelDistribution(i,:)',...
+            1:size(solarPanelDistribution,1),'UniformOutput',false);
         bendingMomentContinuum{a,h} = sum(cross(momentArmSolarPanel,...
-            pressureCoeffContinuum{a,h}(solarPanelElements.faces,:) * ...
-            dynamicPressure .* solarPanelTrianglesArea));
+            [rotatedDistribution{:}]') * ...
+            dynamicPressure .* solarPanelTrianglesArea);
+%         bendingMomentContinuum{a,h} = sum(cross(momentArmSolarPanel,...
+%             pressureCoeffContinuum{a,h}(solarPanelElements.faces,:)) * ...
+%             dynamicPressure .* solarPanelTrianglesArea);
         
         %...Integrate to find force coefficients
         forceCoefficients = sum(pressureCoeffContinuum{a,h} .* trianglesArea) ./ crossSectionalArea(referenceArea);
@@ -367,16 +380,14 @@ for h = 1:length(simAltContinuum)
         %...Integrate to find moment coefficients
         momentCoefficients = sum(cross(momentArm,pressureCoeffContinuum{a,h}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
-%         momentCoefficients = sum(cross(computeMomentArm(points,triangles(~antennaElement.faces,:),zeros(1,3)), ...
-%             pressureCoeffContinuum{a,h}(~antennaElement.faces,:)) .* ...
-%             trianglesArea(~antennaElement.faces,:)) / crossSectionalArea(referenceArea) / referenceLength;
         
         %...Find aerodynamic coefficients
         aeroCoeffContinuum{a,h} = [ transformation' * forceCoefficients'; ...
             transformation' * momentCoefficients']; % inverse rotation
     end
 end
-clear transformation V sineIncidenceAngle locPos locNeg forceCoefficients momentCoefficients
+clear transformation V sineIncidenceAngle locPos locNeg dynamicPressure solarPanelDistribution rotatedDistribution ...
+    forceCoefficients momentCoefficients
 
 %% Compute Transition Regime
 
@@ -471,7 +482,6 @@ if showFigure
         grid on
         legend(split(num2str(simAltitudes)),'Location','Best')
     else
-        %%
         %...Plot aerodynamic coefficients in 2D for rarefied flow
         for i = 1:6
             F = figure('rend','painters','pos',figSizeSmall);
@@ -498,7 +508,7 @@ if showFigure
             end
             if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{i})],'epsc'), end
         end
-        %%
+        
         F = figure('rend','painters','pos',figSizeSmall);
         hold on
         plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffRarefied(:,2)), ...
@@ -506,23 +516,21 @@ if showFigure
         plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to pressure only
             arrayfun(@(a)-sum(cross(momentArm,pressureCoeffRarefied{a,2}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
-            1:length(simAnglesOfAttack),'UniformOutput',false)...
-            ), ...
+            1:length(simAnglesOfAttack),'UniformOutput',false) ), ...
             styles{2},'LineWidth',1.25,'MarkerSize',10)
         plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to friction only
             arrayfun(@(a)-sum(cross(momentArm,frictionCoeffRarefied{a,2}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
-            1:length(simAnglesOfAttack),'UniformOutput',false)...
-            ), ...
+            1:length(simAnglesOfAttack),'UniformOutput',false) ), ...
             styles{3},'LineWidth',1.25,'MarkerSize',10)
         hold off
         xlabel('Angle of Attack [deg]')
         ylabel([labels{5},' Coefficient [-]'])
         set(gca,'FontSize',15)
         grid on
-        legend('Combined','Pressure','Shear','Location','SW')
+        legend('Combined','Pressure','Shear','Location','NE')
         if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{5}),'_split'],'epsc'), end
-        %%
+        
         %...Plot aerodynamic coefficients in 2D for continuum flow
         F = figure('rend','painters','pos',figSizeSmall);
         yyaxis left
@@ -558,7 +566,7 @@ if showFigure
         set(gca,'FontSize',15)
         grid on
         if i == 5
-            view([-215,30])
+            view([35,30])
         else
             view([-35,30])
         end
@@ -613,7 +621,7 @@ fprintf( ['Offset to validation data:\n',repmat('%.1f\t',[1,length(densityValues
 if showFigure
     %...Plot bending moment magnitude for rarefied flow
     F = figure('rend','painters','pos',figSizeSmall);
-    plot(simAltRarefied,bendingMomentRarefiedMagnitude(6,:),'-o','LineWidth',1.25,'MarkerSize',10)
+    plot(simAltRarefied,bendingMomentRarefiedMagnitude(find(simAnglesOfAttack==0,1),:),'-o','LineWidth',1.25,'MarkerSize',10)
     xlabel('Altitude [km]')
     ylabel('Bending Moment [N m]')
     xticks(simAltRarefied)
@@ -662,32 +670,60 @@ h = 1;
 %...Plot
 if showFigure
     %...Plot triangulation for rarefied flow
-    if ~saveFigure
-        titles = {'Pressure','Friction','Moment','Pressure','','Moment'};
-        color = {sqrt(sum(pressureCoeffRarefied{a,h}.^2,2)),...
-            sqrt(sum(frictionCoeffRarefied{a,h}.^2,2)),...
-            sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}).^2,2)), ...
-            sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
-            NaN, ...
-            sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
-        F = figure('rend','painters','pos',figSizeLarge);
-        for i = 1:length(color)
-            if i ~= 5
-                subplot(2,3,i)
-                Tri.facevertexcdata = color{i};
-                patch(Tri), shading faceted, colormap jet
-                c = colorbar; c.Location = 'southoutside';
-                set(gca,'FontSize',15), view([127.5,30])
-                axis off tight equal
-                title(titles{i})
-            end
+    titles = {'Pressure','Friction','Moment','Pressure','','Moment'};
+    color = {sqrt(sum(pressureCoeffRarefied{a,h}.^2,2)),...
+        sqrt(sum(frictionCoeffRarefied{a,h}.^2,2)),...
+        sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}).^2,2)), ...
+        sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
+        NaN, ...
+        sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
+    F = figure('rend','painters','pos',figSizeLarge);
+    for i = 1:length(color)
+        if i ~= 5
+            subplot(2,3,i)
+            Tri.facevertexcdata = color{i};
+            patch(Tri), shading faceted, colormap jet
+            c = colorbar; c.Location = 'southoutside';
+            set(gca,'FontSize',15), view([127.5,30])
+            axis off tight equal
+            title(titles{i})
         end
-        subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
-    else
-        
     end
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
 end
-clear F j color c
+clear F j c
+
+%...Vector Plots
+a = find(simAnglesOfAttack==0,1);
+if showFigure
+    %...Plot pressure and shear forces for rarefied flow
+    F = figure('rend','painters','pos',figSizeSmall);
+    subplot(1,2,1)
+    Tri.facevertexcdata = color{1};
+    hold on
+    patch(Tri,'FaceAlpha',0.5), shading faceted, colormap jet
+    quiver3(trianglesCentroid(:,1),trianglesCentroid(:,2),trianglesCentroid(:,3),...
+        pressureCoeffRarefied{a,h}(:,1),pressureCoeffRarefied{a,h}(:,2),pressureCoeffRarefied{a,h}(:,3))
+    hold off
+    c = colorbar; c.Location = 'southoutside';
+    set(gca,'FontSize',15), view([127.5,30])
+    set(gca,'FontSize',15)
+    axis off tight equal
+    title(titles{1})
+    
+    subplot(1,2,2)
+    Tri.facevertexcdata = color{2};
+    hold on
+    patch(Tri,'FaceAlpha',0.5), shading faceted, colormap jet
+    quiver3(trianglesCentroid(:,1),trianglesCentroid(:,2),trianglesCentroid(:,3),...
+        frictionCoeffRarefied{a,h}(:,1),frictionCoeffRarefied{a,h}(:,2),frictionCoeffRarefied{a,h}(:,3))
+    hold off
+    c = colorbar; c.Location = 'southoutside';
+    set(gca,'FontSize',15), view([127.5,30])
+    set(gca,'FontSize',15)
+    axis off tight equal
+    title(titles{2})
+end
 
 %% Compute Moment Coefficient Without Antenna
 
@@ -821,7 +857,7 @@ function [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAre
     crossSectionalArea = 0.5 * sum(abs(trianglesNormal) .* trianglesArea);
 end
 
-function momentArm = computeMomentArm(points,triangles,referencePoint)
+function [momentArm,trianglesCentroid] = computeMomentArm(points,triangles,referencePoint)
     %...Function handle for surface normal
     centroid = @(p) [sum(p(:,1)),sum(p(:,2)),sum(p(:,3))]/3;
 

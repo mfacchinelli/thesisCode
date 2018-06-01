@@ -2,7 +2,7 @@ function tabular = TabulatedMCDAtmosphere(mode,tabular)
 %% Main File
 
 %...Globals
-global plotResults latitude longitude altitude densLoc presLoc tempLoc
+global showFigures latitude longitude altitude densLoc presLoc tempLoc
 tab_atm_param = [densLoc,presLoc,tempLoc];
 
 %...Switch mode based on selected averaging process
@@ -26,7 +26,7 @@ switch mode
         fclose(fileID);
         
         %..Plot mean atmosphere
-        if plotResults
+        if showFigures
             figure;
             for i = 1:3
                 subplot(1,3,i)
@@ -52,7 +52,7 @@ switch mode
         tabular_mean = cat(4,tabular_mean,tabular(:,:,:,end-2:end));
 
         %...Interpolate data
-        hs_interp = logspace(log10(altitude(1)),log10(altitude(end)),1e3);
+        hs_interp = logspace(log10(altitude(1)),log10(altitude(end)),500);
         lon_interp = linspace(longitude(1),longitude(end),150);
         lat_interp = linspace(latitude(1),latitude(end),75);
         for i = 1:size(tabular_mean,4)

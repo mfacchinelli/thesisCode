@@ -20,7 +20,7 @@ saveFigure = false;
 [figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...SPARTA
-SPARTAExec = '/Users/Michele/AE Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
+SPARTAExec = '/Users/Michele/Software/SPARTA/src/spa_mac_mpi'; % path to SPARTA executable
 
 %...Repositories
 SPARTARepository = ['/Users/Michele/Library/Mobile Documents/com~apple~CloudDocs/University/Master ',...

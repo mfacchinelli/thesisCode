@@ -4,14 +4,24 @@
 #--- Run Example ---#
 mpirun -np 14 ../sparta/src/spa_mpi -in in.mro
 
+#--- Run Example with Variable Number of Cores ---#
+nice mpirun -np 28 -hostfile hostfile ../sparta/src/spa_mpi -in in.mro
+
 #--- Run MRO Analysis ---#
 matlab -r -nodesktop -nodisplay -nosplash -nojvm 'RunSPARTAServer'
+
+#--- Build and Run Application ---#
+cd ~/tudatBundle/build; nice make application_spartaTest -j 30; cd ~/tudatBundle/tudatApplications/bin/applications; nice ./application_spartaTest -j 30
+
+cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_spartaTest -j 14
+
+cd ~/tudatBundle/build; nice make test_UnifiedStateModelStateDerivative -j 30; cd ~/tudatBundle/tudat/bin/unit_tests; nice ./test_UnifiedStateModelStateDerivative -j 30
 
 ##########################################################################################
 ### Run Example Sphere
 
-cd /Users/Michele/AE\ Software/SPARTA/examples/sphere
-mpirun -n 2 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
+cd /Users/Michele/Software/SPARTA/examples/sphere
+mpirun -n 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
 
 ##########################################################################################
 ### Run MRO
@@ -20,16 +30,16 @@ mpirun -n 2 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.sphere; co
 cd /Users/Michele/Library/Mobile\ Documents/com~apple~CloudDocs/University/Master\ Thesis/Code/SPARTA/mro/
 
 #--- RUN MRO WITH SINGLE PROCESS ---#
-/Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi < in.mro
+/Users/Michele/Software/SPARTA/src/spa_mac_mpi < in.mro
 
 #--- RUN MRO WITH MPI FOR MULTI-PROCESS COMPUTATION ---#
-mpirun -np 2 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro
+mpirun -np 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro
 
 #--- RUN MRO WITH MPI AND IMAGEMAGICK ---#
-mpirun --hostfile hostfile -np 4 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*
+mpirun --hostfile hostfile -np 4 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*
 
 #--- RUN MRO WITH MPI AND IMAGEMAGICK AND OPEN LOG ---#
-mpirun --hostfile hostfile -np 4 /Users/Michele/AE\ Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*; open log.sparta -a textedit
+mpirun --hostfile hostfile -np 4 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*; open log.sparta -a textedit
 
 ##########################################################################################
 ### ImageMagick Toolkit

@@ -4,7 +4,7 @@ addpath functions
 %% Settings
 
 %...Globals
-global fullDatabase plotResults saveFigures
+global fullDatabase showFigures saveFigures
 
 %...Set settings
 downloadDatabse = false;
@@ -13,8 +13,8 @@ if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
 genTable = true;
-plotResults = true;
-saveFigures = true;
+showFigures = false;
+saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
@@ -31,7 +31,7 @@ ts = 0:90:270; T = length(ts);
 
 %...Altitude range
 [H,hs,hs_plot,hs_loc_plot] = altitudeRange();
-if plotResults
+if showFigures
     figure; 
     yyaxis left
     scatter(1:length(hs),hs)
@@ -177,7 +177,7 @@ knudsenNumberLatLonTimeAvg = knudsenNumberFun(molarMassLatLonTimeAvg,dataLatLonT
     collisionDiameterLatLonTimeAvg);
 
 %...Verify results
-if plotResults && ~saveFigures
+if showFigures && ~saveFigures
     figure
     yyaxis left
     hold on
@@ -222,7 +222,7 @@ knudsenNumberTimeAvg = knudsenNumberFun(molarMassTimeAvg,dataTimeAvg(:,:,:,densL
     collisionDiameterTimeAvg);
 
 %...Verify results
-if plotResults && ~saveFigures
+if showFigures && ~saveFigures
     [lonH,latH,altH] = meshgrid(longitude,latitude,hs);
     
     figure;
@@ -255,7 +255,7 @@ if fullDatabase
     save('../SPARTA/MCDEnvir','altitude','density','pressure','temperature',...
         'gasRatio','gasStr','gasConstant','specificHeatRatio','speedOfSound','numberDensity','knudsenNumber');
     
-    if plotResults
+    if showFigures
         %...Plot gas percentage
         F = figure('rend','painters','pos',figSizeMedium);
         styles = repmat({'-',':','--','-.'},[1,3]);
@@ -267,7 +267,7 @@ if fullDatabase
         xlabel('Altitude [km]')
         ylabel('Gas Fraction [-]')
         legend(gasStr,'Location','Best')
-        set(gca,'FontSize',15,'XScale','log','YScale','log')
+        set(gca,'FontSize',17.5,'XScale','log','YScale','log')
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
         ylim([1e-10,1])
@@ -283,7 +283,7 @@ if fullDatabase
         plot([10,10^6],masses(4)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','-.')
         hold off
         ylabel('Molar Mass [g mol^{-1}]')
-        set(gca,'FontSize',15,'XScale','log')
+        set(gca,'FontSize',17.5,'XScale','log')
         yyaxis right
         plot(hs,abs(sum(gasRatio,2)-1),'LineWidth',1.75)
         ylabel('Offset in Gas Presence [-]')
@@ -304,7 +304,7 @@ if fullDatabase
         loglog(hs,knudsenNumber,'LineWidth',1.75)
         ylabel('Knudsen Number [-]')
         xlabel('Altitude [km]')
-        set(gca,'FontSize',15)
+        set(gca,'FontSize',17.5)
         grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
         if ~saveFigures, title('Number Density and Knudsen'),
@@ -328,7 +328,7 @@ end
 
 %% Plot
 
-if plotResults
+if showFigures
     %...Make density and pressure logarithmic
     data{densLoc} = log10(data{densLoc});
     data{presLoc} = log10(data{presLoc});
