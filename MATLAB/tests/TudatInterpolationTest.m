@@ -69,17 +69,17 @@ dependentData(5,2) = 120.281;
 dependentData(5,3) = 598.243;
 
 interpValues = { [1940,15], [2000,15], [1975,7.5], [1975,32.5], [1940,32.5] };
-% interpValues = { [1950,15], [1990,15], [1975,10], [1975,30], [1950,30.0] };
+interpValues = { [1950,15], [1990,15], [1975,10], [1975,30], [1950,30.0] };
 
 nearestLowerIndices = { [1,1], [4,1], [3,1], [3,2], [1,2] };
 
 for i = 1:length(interpValues)
-    performRecursiveInterpolationStep( independentValues, dependentData, 1, interpValues{ i }, ...
-        [ 0, 0 ], nearestLowerIndices{ i }, 2 )
-%     interp2(independentValues{2},independentValues{1},dependentData,interpValues{i}(2),interpValues{i}(1),'linear')
+%     performRecursiveInterpolationStep( independentValues, dependentData, 1, interpValues{ i }, ...
+%         [ 0, 0 ], nearestLowerIndices{ i }, 2 )
+    interp2(independentValues{2},independentValues{1},dependentData,interpValues{i}(2),interpValues{i}(1),'linear',NaN)
 end
 
-interp2(independentValues{2},independentValues{1},dependentData,15,1975,'linear')
+% interp2(independentValues{2},independentValues{1},dependentData,15,1975,'linear')
 
 %%
 

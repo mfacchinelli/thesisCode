@@ -162,8 +162,9 @@ fclose(fileID);
 adapt2UNIX = @(x) replace(x,' ','\ ');
 
 %...Ask user to proceed
-selection = questdlg('Proceeding with the analysis will overwrite all previous data.',...
-    'Warning','Proceed','Stop','Stop');
+% selection = questdlg('Proceeding with the analysis will overwrite all previous data.',...
+%     'Warning','Proceed','Stop','Stop');
+selection = 'stop';
 
 %...Folder names for SPARTA output
 dataFolder = cell(size(simAltRarefied));
@@ -662,8 +663,9 @@ Tri.vertices = points;
 Tri.faces = triangles;
 
 %...Angle to show
-a = length(simAnglesOfAttack);
-h = 1;
+% a = length(simAnglesOfAttack);
+a = find(simAnglesOfAttack==0,1);
+h = 2;
 
 %...Plot
 if showFigure
@@ -687,7 +689,7 @@ if showFigure
             title(titles{i})
         end
     end
-    subplotTitle([num2str(simAnglesOfAttack(a)),' deg'])
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAltRarefied(h)),' km'])
 end
 clear F j c
 
@@ -722,6 +724,7 @@ if showFigure
     axis off tight equal
     title(titles{2})
 end
+subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAltRarefied(h)),' km'])
 
 %% Compute Moment Coefficient Without Antenna
 

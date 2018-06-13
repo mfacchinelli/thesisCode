@@ -1,12 +1,12 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
 addpath tests data functions
 
+%...Constants
+mu = 3.9860044189e14;%4.28284e13;
+
 %% State Derivative USM7
 
 clc;
-
-%...Constants
-mu = 4.28284e+13;
 
 %...USM state
 USMState = [2549.57,79.2391,-2160.97,-0.670883,-0.275833,-0.0126141,-0.688239]';
@@ -55,11 +55,9 @@ augmented = [0,omega(3),0,omega(1);
 clc;
 skew = @(x) [0,-x(3),x(2);x(3),0,-x(1);-x(2),x(1),0];
 
-%...Constants
-mu = 4.28284e+13;
-
 %...USM state
-USMState = [2494.82    79.0582   -2156.03   0.397386   0.163385 0.00747172,true]';
+% USMState = [2494.82    79.0582   -2156.03   0.397386   0.163385 0.00747172,true]';
+USMState = [7350.14,0,9.09495e-13,0,0,0,false];
 C = USMState(1);
 R = USMState(2:3);
 mrp = USMState(4:6);
@@ -69,6 +67,7 @@ sigma = norm(mrp)
 %...Acceleration
 acc = zeros(3,1);
 acc = [7.75075e-07 2.99033e-06  -3.964e-06];
+acc = [-0.00895823 1.54217e-05 1.63315e-05];
 
 %...Compute right ascension of latitude
 den = (1-norm(mrp)^2)^2+4*mrp(3)^2
@@ -97,15 +96,13 @@ hodograph = [0, -p(1), 0;
     sinLambda, (1+p(1)) * cosLambda, gamma * p(3)]
 
 %...Augmented matrix
-mrpDot = 1/4 * ( (1-sigma^2) * eye(3) + 2 * skew(mrp) + 2 * mrp * mrp' ) * omega
+mrpDot = 1/4 * ( (1-sigma^2) * eye(3) + 2 * skew(mrp) + 2 * ( mrp * mrp' ) ) * omega
+[hodograph*acc';mrpDot;0]
 
 %% State Derivative USMEM
 
 clc;
 skew = @(x) [0,-x(3),x(2);x(3),0,-x(1);-x(2),x(1),0];
-
-%...Constants
-mu = 4.28284e+13;
 
 %...USM state
 % USMState = [2541.35,78.8923,-2151.51,-0.750645,-0.308627,-0.0141137]';

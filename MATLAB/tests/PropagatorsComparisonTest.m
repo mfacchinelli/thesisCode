@@ -5,7 +5,7 @@ addpath tests data functions
 
 %...Figure settings
 plotAllFigures = false;
-saveFigure = true;
+saveFigure = false;
 [figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Result repository
@@ -19,7 +19,7 @@ repository = fullfile(TudatApplicationOutput,'Propagators');
 %	3: Circular orbit at LEO (Low Earth Orbit)
 % 	4: Molniya orbit
 %	5: Low-thrust trajectory
-testCase = 4;
+testCase = 0;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;
@@ -27,23 +27,23 @@ switch testCase
         scaling = 3600;
         timeLabel = 'Time [h]';
         timeStepSeconds = 10;
-        constantStepSizes = [0.1, 1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0];
+        constantStepSizes = [1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0];
         repository = fullfile(repository,'aero');
     case 1 % full aerobraking
         R = 3.396e3;
         simulationDuration = 145.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
-        timeStepSeconds = 100;
+        timeStepSeconds = 250;
         constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
         repository = fullfile(repository,'aero_full');
     case 2 % interplanetary trajectory
         R = 695.508e3;
-        simulationDuration = 50.0;
+        simulationDuration = 260.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
-        timeStepSeconds = 100;
-        constantStepSizes = [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 300.0];
+        timeStepSeconds = 350;
+        constantStepSizes = [50.0, 100.0, 200.0, 400.0, 800.0, 1200.0, 1500.0];
         repository = fullfile(repository,'inter');
     case 3 % circular orbit
         R = 6378.1363;
@@ -111,7 +111,7 @@ for j = 1:length(integrators)
                     ~( i == length(propagators) && k ~= 1 )
                 %...Get orbital data
                 fileName = fullfile(repository,['orbit_',...
-                    propagators{i},'_',integrators{j},'_',num2str(k),'.dat']);
+                    propagators{i},'_',integrators{j},'_1_',num2str(k),'.dat']);
                 fileID = fopen(fileName);
                 kepler = textscan(fileID,repmat('%f ',[1,7]),'CollectOutput',true,'Delimiter',',');
                 time = (kepler{1}(:,1)-kepler{1}(1))/scaling; kepler = kepler{1}(:,2:end);
@@ -120,7 +120,7 @@ for j = 1:length(integrators)
                 
                 %...Get trajecotry data
                 fileName = fullfile(repository,['trajectory_',...
-                    propagators{i},'_',integrators{j},'_',num2str(k),'.dat']);
+                    propagators{i},'_',integrators{j},'_1_',num2str(k),'.dat']);
                 fileID = fopen(fileName);
                 cartesian = textscan(fileID,repmat('%f ',[1,8]),'CollectOutput',true,'Delimiter',',');
                 cartesian = cartesian{1}(:,2:7); cartesian = cartesian/1e3;
@@ -128,7 +128,7 @@ for j = 1:length(integrators)
                 
                 %...Get time step data
                 fileName = fullfile(repository,['eval_',...
-                    propagators{i},'_',integrators{j},'_',num2str(k),'.dat']);
+                    propagators{i},'_',integrators{j},'_1_',num2str(k),'.dat']);
                 fileID = fopen(fileName);
                 l = 1; if i == length(propagators), l = 2; end
                 evaluations = textscan(fileID,repmat('%f ',[1,2]),'CollectOutput',true,'Delimiter',',');
@@ -174,6 +174,8 @@ for j = 1:length(integrators)
 end
 clear fileName fileID k kepler cartesian evaluations time
 
+% plotAllFigures = true;
+
 if plotAllFigures
     F = figure('rend','painters','pos',figSizeLarge);
     yyaxis right
@@ -188,6 +190,8 @@ if plotAllFigures
     if saveFigure, %saveas(F,['../../Report/figures/ref_dt_',testCase],'epsc'),
     else, title('Reference'), end
 end
+
+% plotAllFigures = false;
 
 %% Plot Reference Trajectory
 
@@ -351,11 +355,11 @@ end
 if plotAllFigures
     format short g
     for l = 1:values
-        rmsErrorTableVar = array2table([rmsError(1:end-1,:,1,l),arrayfun(@(i)sum(results(i,1,l).evaluations),1:size(results,1)-1)'],...
-            'VariableNames',{'x','y','z','r','v_x','v_y','v_z','v','eval'},...
+        rmsErrorTableVar = array2table([rmsError(1:end-1,:,1,l),arrayfun(@(i)sum(results(i,1,l).evaluations),...
+            1:size(results,1)-1)'],'VariableNames',{'x','y','z','r','v_x','v_y','v_z','v','eval'},...
             'RowNames',propagatorNames(1:end-1))
-        rmsErrorTableCont = array2table([rmsError(1:end-1,:,2,l),arrayfun(@(i)sum(results(i,2,l).evaluations),1:size(results,1)-1)'],...
-            'VariableNames',{'x','y','z','r','v_x','v_y','v_z','v','eval'},...
+        rmsErrorTableCont = array2table([rmsError(1:end-1,:,2,l),arrayfun(@(i)sum(results(i,2,l).evaluations),...
+            1:size(results,1)-1)'],'VariableNames',{'x','y','z','r','v_x','v_y','v_z','v','eval'},...
             'RowNames',propagatorNames(1:end-1))
     end
     format long g
@@ -367,12 +371,13 @@ styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
 F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:length(propagators)-1
-    plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values(1)),squeeze(rmsError(i,4,1,1:values(1)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
+    plot(arrayfun(@(j)sum(results(i,1,j).evaluations),1:values(1)),...
+        squeeze(rmsError(i,4,1,1:values(1)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
 end
 hold off
 xlabel('Function Evaluations [-]')
 ylabel('RMS Position Error [m]')
-legend(propagatorNames(1:end-1),'Location','NE')
+legend(propagatorNames(1:end-1),'Location','Best')
 set(gca,'FontSize',15,'YScale','log')
 grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_var_',num2str(testCase)],'epsc'), end
@@ -386,7 +391,7 @@ end
 hold off
 xlabel('Constant Time Step [s]')
 ylabel('RMS Position Error [m]')
-legend(propagatorNames(1:end-1),'Location','SE')
+legend(propagatorNames(1:end-1),'Location','Best')
 set(gca,'FontSize',15,'YScale','log')
 grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_const_',num2str(testCase)],'epsc'), end
@@ -398,15 +403,15 @@ if plotAllFigures
     for i = 2:4
         switch propagators{i}
             case 'usm7'
-                limit = 8; spyValue = 4;
+                spyValue = 4;
                 correctState = @(x) horzcat(x,abs(1-sqrt(sum(x(:,4:7).^2,2))));
                 labels = usm7Labels;
             case 'usm6'
-                limit = 8; spyValue = 3;
+                spyValue = 3;
                 correctState = @(x)x;
                 labels = usm6Labels;
             case 'usmem'
-                limit = 7; spyValue = 3;
+                spyValue = 3;
                 correctState = @(x)x;
                 labels = usmemLabels;
             otherwise
@@ -414,9 +419,9 @@ if plotAllFigures
         end
         
         %...Get USM data
-        fileName = fullfile(repository,['usm_',propagators{i},'_',integrators{1},'_1.dat']);
+        fileName = fullfile(repository,['usm_',propagators{i},'_',integrators{1},'_1_1.dat']);
         fileID = fopen(fileName);
-        usm = textscan(fileID,repmat('%f ',[1,limit]),'CollectOutput',true,'Delimiter',',');
+        usm = textscan(fileID,repmat('%f ',[1,8]),'CollectOutput',true,'Delimiter',',');
         time = (usm{1}(:,1)-usm{1}(1))/scaling; usm = usm{1}(:,2:end); usm(:,1:3) = usm(:,1:3)/1e3;
         usm = correctState(usm);
         fclose(fileID);
@@ -427,7 +432,7 @@ if plotAllFigures
             subplot(2,spyValue,j)
             hold on
             plot(time,usm(:,j),'LineWidth',1.1)
-            if strcmpi(propagators{i},'usm6')
+            if i > 2
                 if j >= 4
                     plot(time,usm(:,7),'LineStyle','--')
                 end

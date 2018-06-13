@@ -46,8 +46,8 @@ sqrt(mu*(2/(a*(1-1.2))-1/a))
 clc;
 
 %...Elliptical orbit
-semiMajorAxis = 31241000;
-eccentricity = 0.89;
+semiMajorAxis = 23617.8637e3;
+eccentricity = 0.833437;
 
 rp = (semiMajorAxis*(1-eccentricity) - radius)/1e3;
 ra = (semiMajorAxis*(1+eccentricity) - radius)/1e3;

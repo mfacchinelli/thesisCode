@@ -7,7 +7,7 @@ addpath functions tests
 %       1: both real2sim and gridSpacing
 %       2: only real2sim
 %       3: only gridSpacing
-testCase = 1;
+testCase = 2;
 
 %...Figures and tables setting
 showFigure = true;

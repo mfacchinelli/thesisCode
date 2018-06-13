@@ -52,13 +52,13 @@ for i = 1:4
     fileID = fopen(fileName,'r');
     usm6Output = textscan(fileID,repmat('%f ',[1,8]),'CollectOutput',true,'Delimiter',',');
     usm6Output = usm6Output{1};
-    usm6Output = [ usm6Output, ...
-        ( cos( 0.5 * keplerInput( :, 4 ) ) .* cos( 0.5 * sum( keplerInput( :, 5 : 7 ), 2 ) ) ) < 0 ];
+%     usm6Output = [ usm6Output, ...
+%         ( cos( 0.5 * keplerInput( :, 4 ) ) .* cos( 0.5 * sum( keplerInput( :, 5 : 7 ), 2 ) ) ) < 0 ];
     fclose(fileID);
     fileName = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/'...
         'Conversions/usmem_output_',num2str(i-1),'.dat'];
     fileID = fopen(fileName,'r');
-    usmemOutput = textscan(fileID,repmat('%f ',[1,7]),'CollectOutput',true,'Delimiter',',');
+    usmemOutput = textscan(fileID,repmat('%f ',[1,8]),'CollectOutput',true,'Delimiter',',');
     usmemOutput = usmemOutput{1};
     fclose(fileID);
     

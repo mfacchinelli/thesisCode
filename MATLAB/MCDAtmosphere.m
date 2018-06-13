@@ -14,7 +14,7 @@ else, folder = 'MCD'; end
 
 genTable = true;
 showFigures = true;
-saveFigures = true;
+saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
@@ -379,7 +379,7 @@ if showFigures
     end
     if ~saveFigures, subplotTitle('Speed of Sound'),
     else, saveas(F,'../../Report/figures/mars_sos','epsc'), end
-%%
+
     %...Mean values
     if genTable
         mean_plot_params = [densLoc,presLoc,tempLoc,size(tabularTimeAvg,4)-2,size(tabularTimeAvg,4)-1];

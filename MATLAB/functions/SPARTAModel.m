@@ -136,9 +136,15 @@ if showFigure
     end
     
     F = figure;
+    hold on
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 1, 0, 0, 'LineWidth', 2 )
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 1, 0, 'LineWidth', 2 )
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 0, 1, 'LineWidth', 2 )
     patch(Tri)
+    hold off
     shading faceted
     view([127.5,30])
+    legend('x','y','z','Location','South','Orientation','Horizontal')
     if saveFigure
         axis equal off
         saveas(F,'../../Report/figures/mro_design_sparta','epsc')
