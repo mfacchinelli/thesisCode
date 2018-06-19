@@ -1,14 +1,6 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
 addpath functions tests
 
-%...Set system path
-setenv('PATH',[getenv('PATH'),':/Users/Michele/Software/ImageMagick-7.0.7/bin:/opt/local/bin:',...
-    '/opt/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/opt/X11/bin']);
-
-%...Set ImageMagick path
-setenv('MAGICK_HOME','/Users/Michele/Software/ImageMagick-7.0.7')
-setenv('DYLD_LIBRARY_PATH','$MAGICK_HOME/ImageMagick-7.0.7/lib/')
-
 %% SPARTA and Modeling Variables
 
 %...Figures and tables setting
@@ -63,9 +55,9 @@ r2sOffset = 15; % number of simulated particles per cell
 
 %...Simulation conditions
 simAnglesOfAttack = 0; % angles of attack for simulation
-simAltRarefied = linspace(100,150,11); % altitudes for rarefied regime simulations
-simGases = {'CO2','H','O'};
-gasRatios = {1.0,1.0,1.0};
+simAltRarefied = 100:5:150; % altitudes for rarefied regime simulations
+simGases = {'CO2'};%,'H','O'};
+gasRatios = {1.0};%,1.0,1.0};
 
 %...Time settings
 simTimeStep = round(0.1*diff(MROExtent(1,:))/3500,5); % time step (1/10-th box traverse time)
@@ -92,13 +84,17 @@ altitude = MCD.altitude;
 density = MCD.density;
 pressure = MCD.pressure;
 temperature = 150;
-gamma = MCD.gamma;
-speedOfSound = MCD.sos;
+gamma = MCD.specificHeatRatio;
+speedOfSound = MCD.speedOfSound;
 
 %...Interpolate to find data for rarefied regime
 [density,pressure,gamma,speedOfSound] = interpolate(altitude,simAltRarefied,density,...
     pressure,gamma,speedOfSound);
-numberDensity = repmat(interpolate(altitude,simAltRarefied,MCD.numberDensity),[length(simGases),1]); % overwrite number density
+
+%...Number density
+avogadrosNumber = 6.022140857e23;
+molarMass = 44.01e-3;
+numberDensity = avogadrosNumber / molarMass * density;
 real2sim = numberDensity / r2sOffset * gridSpacing^3; % overwrite real-to-simulated-particles ratio
 
 %...Find circular velocity at altitude
@@ -291,33 +287,9 @@ end
 %...Print LaTeX table
 percentageOffset = ( cellfun(@(x)x(1),aeroCoeffRarefied(g,:)) - dragDensity(densityValues) ) ./ ...
     dragDensity(densityValues) * 100;
-fprintf('\\num{%.0f} & \\num{%.1e} & %.2f & %.2f & %.1f \\\\ \n',...
+fprintf('\\num{%.0f} & \\num{%.1e} & %.2f & %.2f & %.1f \\\\\n',...
     [simAltRarefied',densityValues',cellfun(@(x)x(1),aeroCoeffRarefied(g,:))',...
     dragDensity(densityValues)',percentageOffset']')
-
-%% GIF Commands
-
-if strcmpi(selection,'proceed')
-    %...Open terminal
-    ! open /Applications/Utilities/Terminal.app/
-    
-    %...Create command string
-    GIFCommand = ['export MAGICK_HOME="/Users/Michele/Software/ImageMagick-7.0.7"; '...
-        'export PATH="$MAGICK_HOME/bin:$PATH"; export DYLD_LIBRARY_PATH="$MAGICK_HOME/lib/"; '...
-        'cd ',adapt2UNIX(MRORepository)];
-    for h = simAltRarefied
-        hs = num2str(h);
-        GIFCommand = [GIFCommand,'; convert '];
-        for a = simAnglesOfAttack
-            as = num2str(a);
-            GIFCommand = [GIFCommand,sprintf('%s ',fullfile('figures',hs,[as,'.image.*']))];
-        end
-        GIFCommand = [GIFCommand,fullfile('videos',['movie_',hs,'.gif'])];
-    end
-    
-    %...Add command string to clipboard
-    clipboard('copy',GIFCommand)
-end
 
 %% Supporting Functions
 

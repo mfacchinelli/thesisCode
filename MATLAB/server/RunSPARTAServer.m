@@ -3,10 +3,11 @@ fclose('all'); clear all; close all force; profile off; clc; format long g; rng 
 %% SPARTA and Modeling Variables
 
 %...Select test case
+%       0: nominal case (all altitudes)
 %       1: both real2sim and gridSpacing
 %       2: only real2sim
 %       3: only gridSpacing
-testCase = 3;
+% testCase = 2;
 
 %...Rotate by 180 degrees
 rotateMRO = false;
@@ -17,15 +18,24 @@ else
 end
 
 %...Host file settings
-useHostFile = false; % run SPARTA simulation with 4 cores (slows down computer a lot)
+useHostFile = false; % run SPARTA simulation with 30 cores
 
 %...SPARTA
-SPARTAExec = '/home/michele/sparta/spa_mpi'; % path to SPARTA executable
+SPARTAExec = '/home/michele/sparta/src/spa_mpi'; % path to SPARTA executable
 
 %...Repositories
 AeroRepository = '/home/michele/aero'; % path to SPARTA folder
 MRORepository = fullfile(AeroRepository,'mro'); % path to MRO folder
-OutputRepository = fullfile(MRORepository,repository,'data'); % path to SPARTA results
+switch testCase
+    case 0
+        OutputRepository = fullfile(MRORepository,repository,'data'); % path to SPARTA results
+    case 1
+        OutputRepository = fullfile(MRORepository,repository,'data_both'); % path to SPARTA results
+    case 2
+        OutputRepository = fullfile(MRORepository,repository,'data_ratio'); % path to SPARTA results
+    case 3
+        OutputRepository = fullfile(MRORepository,repository,'data_grid'); % path to SPARTA results
+end
 
 %...Files
 MROInputFile = fullfile(MRORepository,'in.mro'); % path to MRO input file
@@ -57,6 +67,9 @@ MarsRadius = 3.390e6;
 
 %...Grid specifications
 switch testCase
+    case 0
+        r2sOffset = 20; % number of simulated particles per cell
+        gridSpacing = 0.25; % grid size
     case 1
         r2sOffset = 35; % number of simulated particles per cell
         gridSpacing = 0.15; % grid size
@@ -70,9 +83,14 @@ end
 simGrid = diff(MROExtent,[],2)/gridSpacing;
 
 %...Simulation conditions
-simAnglesOfAttack = linspace(-30,30,13); % angles of attack for simulation
-%[linspace(-75,-30,4),linspace(-25,25,11),linspace(30,75,4)];
-simAltRarefied = 125;%[100,125,150,200,300,500]; % altitudes for rarefied regime simulations
+switch testCase
+    case 0
+        simAnglesOfAttack = [linspace(-75,-30,4),-25:5:25,linspace(30,75,4)]; % angles of attack for simulation
+        simAltRarefied = [100,125,150,200,300,500]; % altitudes for rarefied regime simulations
+    otherwise
+        simAnglesOfAttack = -30:5:30; % angles of attack for simulation
+        simAltRarefied = 125; % altitudes for rarefied regime simulations
+end
 
 %...Time settings
 simTimeStep = round(0.1*diff(MROExtent(1,:))/3500,5); % time step (1/10-th box traverse time)
@@ -121,7 +139,9 @@ for h = 1:length(simAltRarefied)
     gasList{h} = join(gas{h},' '); gasList{h} = gasList{h}{1};
 end
 gasRatios = frac; 
-% gasRatios{4} = [0.12,0.28,0.18,0.42]; % make sure it all sums up to one
+if testCase == 0
+    gasRatios{4} = [0.12,0.28,0.18,0.42]; % make sure it all sums up to one
+end
 gasNames = cellfun(@(x)erase(x,'_'),gas,'UniformOutput',false);
 gasNamesString = cellfun(@(x)erase(x,'_'),gasList,'UniformOutput',false);
 clear frac gas
@@ -168,7 +188,7 @@ system(['rm ',fullfile(adapt2UNIX(OutputRepository),'*/*.coeff.*')]);
 %...Generate command
 if useHostFile
     commandString = ['cd ',adapt2UNIX(MRORepository),';',...
-        'nice -1 mpirun -np 28 -hostfile hostfile ',adapt2UNIX(SPARTAExec),' -in ',...
+        'nice mpirun -np 30 ',adapt2UNIX(SPARTAExec),' -in ',...
         adapt2UNIX(MROInputFile)];
 else
     commandString = ['cd ',adapt2UNIX(MRORepository),';',...
@@ -199,16 +219,11 @@ for h = 1:length(simAltRarefied)
     fprintf(fileID,template,simBox,simGrid,numberDensity(h),real2sim(h),gasNamesString{h},...
         gasFractions,gasNamesString{h},streamVelocity(h,:),gasNamesString{h},...
         temperature(h),num2str(simAnglesOfAttack,'%.0f '),simTimeStep,...
-        erase(dataFolder{h},[MRORepository,'/']),...
-        simSteps);
+        erase(dataFolder{h},[MRORepository,'/']),simSteps);
     fclose(fileID);
     
     %...Run command via Terminal
-    [status{h},outcome{h}] = system(commandString,'-echo');
-    if status{h}
-        system(['open ',adapt2UNIX(fullfile(MRORepository,'log.sparta')),' -a textedit']);
-        error('SPARTA simulation failed. Opening log file.')
-    end
+    status = system(commandString,'-echo');
 end
 clear commandString gasFractions fileID
 

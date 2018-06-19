@@ -137,14 +137,19 @@ if showFigure
     
     F = figure;
     hold on
-    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 1, 0, 0, 'LineWidth', 2 )
-    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 1, 0, 'LineWidth', 2 )
-    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 0, 1, 'LineWidth', 2 )
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 1, 0, 0, 'LineWidth',2,'MaxHeadSize',0.5 )
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 1, 0, 'LineWidth',2,'MaxHeadSize',0.5 )
+    quiver3( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 0, 0, 1, 'LineWidth',2,'MaxHeadSize',0.5 )
+    text( 1, L_bus/2 + L_sa - 1, L_bus + L_ant/2, 'x','FontWeight','bold',...
+        'VerticalAlignment','mid','HorizontalAlignment','right')
+    text( 0, L_bus/2 + L_sa, L_bus + L_ant/2, 'y','FontWeight','bold',...
+        'VerticalAlignment','mid','HorizontalAlignment','left')
+    text( 0, L_bus/2 + L_sa - 1, L_bus + L_ant/2 + 1, 'z','FontWeight','bold',...
+        'VerticalAlignment','bottom','HorizontalAlignment','center')
     patch(Tri)
     hold off
     shading faceted
     view([127.5,30])
-    legend('x','y','z','Location','South','Orientation','Horizontal')
     if saveFigure
         axis equal off
         saveas(F,'../../Report/figures/mro_design_sparta','epsc')

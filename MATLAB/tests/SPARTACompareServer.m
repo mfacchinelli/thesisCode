@@ -7,7 +7,7 @@ addpath functions tests
 %       1: both real2sim and gridSpacing
 %       2: only real2sim
 %       3: only gridSpacing
-testCase = 2;
+testCase = 3;
 
 %...Figures and tables setting
 showFigure = true;
@@ -97,12 +97,8 @@ streamVelocity(:,1) = - MarsCircularVelocity(simAltitudes)';
 [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAreaNormal(points,triangles);
 referenceArea = 1;
 referenceLength = 2.5;
-momentArm = computeMomentArm(points,triangles);
-
-%...Compute same data only for solar panels
-[solarPanelTrianglesArea,solarPanelTrianglesNormal,solarPanelCrossSectionalArea] = ...
-    computeTriangleAreaNormal(points,triangles(solarPanelElements.faces,:));
-momentArmSolarPanel = computeMomentArm(points,triangles(solarPanelElements.faces,:));
+centerOfMass = [0,0,0.1375];
+[momentArm,trianglesCentroid] = computeMomentArm(points,triangles,centerOfMass);
 
 %% Analyze SPARTA Rarefied Results Local
 
@@ -110,7 +106,6 @@ momentArmSolarPanel = computeMomentArm(points,triangles(solarPanelElements.faces
 pressureCoeffLocal = cell(length(simAnglesOfAttack),length(simAltitudes));
 frictionCoeffLocal = cell(length(simAnglesOfAttack),length(simAltitudes));
 aeroCoeffLocal = cell(length(simAnglesOfAttack),length(simAltitudes));
-bendingMomentLocal = cell(length(simAnglesOfAttack),length(simAltitudes));
 for h = 1:length(simAltitudes)
     for a = 1:length(simAnglesOfAttack)
         %...Get (average) distribution
@@ -129,14 +124,13 @@ for h = 1:length(simAltitudes)
         %   is still starting up
         averageDistribution = median(cat(3,distribution{3:end}),3);
         
-        %...Compute bending moment
-        bendingMomentLocal{a,h} = sum(cross(momentArmSolarPanel,(averageDistribution(solarPanelElements.faces,1:3) + ...
-            averageDistribution(solarPanelElements.faces,4:6))) .* solarPanelTrianglesArea);
+        %...Transformation from aerodynamic to body frame
+        transformation = roty(simAnglesOfAttack(a));
         
         %...Compute pressure and friction coefficients
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
-        pressureCoeffLocal{a,h} = (averageDistribution(:,1:3) - pressure(h) * trianglesNormal * ...
-            roty(simAnglesOfAttack(a))) / dynamicPressure; % rotate normal to account for angle of attack
+        pressureCoeffLocal{a,h} = (averageDistribution(:,1:3) - pressure(h) * ...
+            ( transformation' * trianglesNormal' )' ) / dynamicPressure; % rotate normal to account for angle of attack
         frictionCoeffLocal{a,h} = averageDistribution(:,4:6) / dynamicPressure;
         
         %...Integrate to find force coefficients
@@ -144,7 +138,10 @@ for h = 1:length(simAltitudes)
             trianglesArea) / crossSectionalArea(referenceArea);
         
         %...Integrate to find moment coefficients
-        momentCoefficients = sum(cross(momentArm,pressureCoeffLocal{a,h} + frictionCoeffLocal{a,h}) .* ...
+        momentArmInAerodynamicFrame = arrayfun(@(i)transformation' * ...
+            momentArm(i,:)',1:size(momentArm,1),'UniformOutput',false);
+        momentCoefficients = sum(cross([momentArmInAerodynamicFrame{:}]', ...
+            pressureCoeffLocal{a,h} + frictionCoeffLocal{a,h}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
         
         %...Find side, drag and lift coefficients
@@ -153,7 +150,8 @@ for h = 1:length(simAltitudes)
         aeroCoeffLocal{a,h} = - [forceCoefficients,momentCoefficients]';
     end
 end
-clear distribution files fileID result averageDistribution dynamicPressure forceCoefficients momentCoefficients
+clear distribution files fileID result averageDistribution transformation solarPanelDistribution ...
+    solarPanelDistributionInAerodynamicFrame dynamicPressure forceCoefficients momentCoefficients
 
 %% Analyze SPARTA Rarefied Results Server
 
@@ -161,7 +159,6 @@ clear distribution files fileID result averageDistribution dynamicPressure force
 pressureCoeffServer = cell(length(simAnglesOfAttack),length(simAltitudes));
 frictionCoeffServer = cell(length(simAnglesOfAttack),length(simAltitudes));
 aeroCoeffServer = cell(length(simAnglesOfAttack),length(simAltitudes));
-bendingMomentServer = cell(length(simAnglesOfAttack),length(simAltitudes));
 for h = 1:length(simAltitudes)
     for a = 1:length(simAnglesOfAttack)
         %...Get (average) distribution
@@ -180,14 +177,13 @@ for h = 1:length(simAltitudes)
         %   is still starting up
         averageDistribution = median(cat(3,distribution{3:end}),3);
         
-        %...Compute bending moment
-        bendingMomentServer{a,h} = sum(cross(momentArmSolarPanel,(averageDistribution(solarPanelElements.faces,1:3) + ...
-            averageDistribution(solarPanelElements.faces,4:6))) .* solarPanelTrianglesArea);
+        %...Transformation from aerodynamic to body frame
+        transformation = roty(simAnglesOfAttack(a));
         
         %...Compute pressure and friction coefficients
         dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
-        pressureCoeffServer{a,h} = (averageDistribution(:,1:3) - pressure(h) * trianglesNormal * ...
-            roty(simAnglesOfAttack(a))) / dynamicPressure; % rotate normal to account for angle of attack
+        pressureCoeffServer{a,h} = (averageDistribution(:,1:3) - pressure(h) * ...
+            ( transformation' * trianglesNormal' )' ) / dynamicPressure; % rotate normal to account for angle of attack
         frictionCoeffServer{a,h} = averageDistribution(:,4:6) / dynamicPressure;
         
         %...Integrate to find force coefficients
@@ -195,7 +191,10 @@ for h = 1:length(simAltitudes)
             trianglesArea) / crossSectionalArea(referenceArea);
         
         %...Integrate to find moment coefficients
-        momentCoefficients = sum(cross(momentArm,pressureCoeffServer{a,h} + frictionCoeffServer{a,h}) .* ...
+        momentArmInAerodynamicFrame = arrayfun(@(i)transformation' * ...
+            momentArm(i,:)',1:size(momentArm,1),'UniformOutput',false);
+        momentCoefficients = sum(cross([momentArmInAerodynamicFrame{:}]', ...
+            pressureCoeffServer{a,h} + frictionCoeffServer{a,h}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
         
         %...Find side, drag and lift coefficients
@@ -204,7 +203,8 @@ for h = 1:length(simAltitudes)
         aeroCoeffServer{a,h} = - [forceCoefficients,momentCoefficients]';
     end
 end
-clear distribution files fileID result averageDistribution dynamicPressure forceCoefficients momentCoefficients
+clear distribution files fileID result averageDistribution transformation solarPanelDistribution ...
+    solarPanelDistributionInAerodynamicFrame dynamicPressure forceCoefficients momentCoefficients
 
 %% Plot Aerodynamic Coefficients
 
@@ -287,7 +287,7 @@ clear F j color c
 
 %% Close All Figures
 
-close all;
+if saveFigure, close all, end
 
 %% Supporting Functions
 
@@ -319,7 +319,7 @@ function [trianglesArea,trianglesNormal,crossSectionalArea] = computeTriangleAre
     crossSectionalArea = 0.5 * sum(abs(trianglesNormal) .* trianglesArea);
 end
 
-function momentArm = computeMomentArm(points,triangles)
+function [momentArm,trianglesCentroid] = computeMomentArm(points,triangles,referencePoint)
     %...Function handle for surface normal
     centroid = @(p) [sum(p(:,1)),sum(p(:,2)),sum(p(:,3))]/3;
 
@@ -331,5 +331,5 @@ function momentArm = computeMomentArm(points,triangles)
     trianglesCentroid = cell2mat(trianglesCentroid);
     
     %...Find distance to center
-    momentArm = trianglesCentroid - [0,0,1.25+0.1375];
+    momentArm = trianglesCentroid - referencePoint;
 end
