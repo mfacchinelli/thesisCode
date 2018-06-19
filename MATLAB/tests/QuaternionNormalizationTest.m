@@ -4,8 +4,8 @@ addpath tests data functions
 %% Settings
 
 %...Constants
-radius = 3.396e3;
-numberOfNormalizationMethods = 5;
+radius = 6378.1363;
+numberOfNormalizationMethods = 6;
 
 %...Result repository
 TudatApplicationOutput = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/Quaternions';
@@ -16,13 +16,18 @@ saveFigure = false;
 [figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Labels
-timeConversion = 3600;
-timeLabel = 'Time [h]';
+timeConversion = 3600 * 24;
+timeLabel = 'Time [d]';
 CartesianLabels = {'x [km]','y [km]','z [km]','v_x [km s^{-1}]','v_y [km s^{-1}]','v_z [km s^{-1}]'};
 CartDiffLabels = {'\Delta x [km]','\Delta y [km]','\Delta z [km]','\Delta r [km]',...
     '\Delta v_x [km/s]','\Delta v_y [km/s]','\Delta v_z [km/s]','\Delta v [km/s]'};
 USM7Labels = {'C Hodograph [km/s]','R_1 Hodograph [km/s]','R_2 Hodograph [km/s]',...
-    'q_1 [-]','q_2 [-]','q_3 [-]','q_4 [-]','Norm Offset [-]'};
+    'q_1 [-]','q_2 [-]','q_3 [-]','q_4 [-]','Quaternion Norm Offset [-]'};
+legendLabels = {'1) None','2) Phillips, Variable','3) Phillips, Constant',...
+    '4) Fukushima, Quaternion','5) Fukushima, Derivative','6) Fukushima, Both'};
+
+%...Computation times
+computationTimes = [ 2.70521, 3.11181, 2.89613, 2.81819, 2.8117, 2.80242 ]; % average of 100 runs
 
 %% Load C++ Results
 
@@ -77,6 +82,51 @@ for i = 1:numberOfNormalizationMethods
         referenceTime, 'spline' );
 end
 
+%% Plot Results
+
+%...Plot Cartesian position
+F = figure('rend','painters','pos',figSizeLarge);
+[x,y,z] = sphere;
+hold on
+plot3(CartesianTranslationalMotionReference(:,1),CartesianTranslationalMotionReference(:,2),...
+    CartesianTranslationalMotionReference(:,3),'LineWidth',1.5)
+surf(radius*x,radius*y,radius*z)
+hold off
+xlabel('x [km]'), ylabel('y [km]'), zlabel('z [km]')
+grid on
+axis equal tight
+set(gca,'FontSize',15)
+clear x y z
+
+%...Plot Cartesian elements difference
+F = figure('rend','painters','pos',figSizeLarge);
+for i = 1:8
+    subplot(2,4,i)
+    hold on
+    for j = 1:numberOfNormalizationMethods
+        if i <= 3
+            plot(referenceTime,abs( CartesianTranslationalMotionInterpolated{j}(:,i) - ...
+                CartesianTranslationalMotionReference(:,i) ),'LineWidth',1.1)
+        elseif i == 4
+            plot(referenceTime,abs( sqrt( sum( CartesianTranslationalMotionInterpolated{j}(:,1:3) .^ 2, 2) ) - ...
+                sqrt( sum( CartesianTranslationalMotionReference(:,1:3) .^ 2, 2 ) ) ),'LineWidth',1.1)
+        elseif i == 8
+            plot(referenceTime,abs( sqrt( sum( CartesianTranslationalMotionInterpolated{j}(:,4:6) .^2, 2 ) ) - ...
+                sqrt( sum( CartesianTranslationalMotionReference(:,4:6) .^ 2, 2) ) ),'LineWidth',1.1)
+        else
+            plot(referenceTime,abs( CartesianTranslationalMotionInterpolated{j}(:,i-1) - ...
+                CartesianTranslationalMotionReference(:,i-1) ),'LineWidth',1.1)
+        end
+    end
+    hold off
+    xlabel(timeLabel)
+    ylabel(CartDiffLabels{i})
+    set(gca,'FontSize',15,'YScale','log')
+    grid on
+    xlim([referenceTime(end)-1,referenceTime(end)])
+end
+subplotLegend(legendLabels)
+
 %% Compute RMS Error w.r.t. Reference
 
 %...Difference in Cartesian elements
@@ -101,9 +151,6 @@ end
 
 %% Plot Results
 
-legendStrings = {'1) None','2) Phillips, W.H., Variable','3) Phillips, W.H., Constant',...
-    '4) Fukushima, T., Derivative','5) Fukushima, T., Both'};
-
 %...Plot quaternion norm offset for each type
 styles = repmat({'-',':','--','-.'},[1,3]);
 F = figure('rend','painters','pos',figSizeSmall);
@@ -114,22 +161,36 @@ end
 hold off
 xlabel(timeLabel)
 ylabel(USM7Labels{end})
-legend(legendStrings{:},'Location','Best')
+legend(legendLabels{:},'Location',[0.6,0.25,0.2,0.2])
 set(gca,'FontSize',15,'XScale','log','YScale','log')
 grid on
 if saveFigure, saveas(F,'../../Report/figures/quat_offset','epsc'), end
 
 %...Plot RMS error
-styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
+styles = {'o','d','s','v','h','p','^'};
 F = figure('rend','painters','pos',figSizeSmall);
 hold on
 for i = 1:numberOfNormalizationMethods
-    bar(functionEvaluations{i}(end),rmsError(4,i)*1e3,10)
+    offsetInFunctionEvaluations = ( functionEvaluations{i}(end) - functionEvaluations{1}(end) ) / ...
+        functionEvaluations{1}(end) * 100;
+    scatter(offsetInFunctionEvaluations,rmsError(4,i)*1e3,250,'filled',styles{i})
+end
+for i = 1:numberOfNormalizationMethods
+    offsetInFunctionEvaluations = ( functionEvaluations{i}(end) - functionEvaluations{1}(end) ) / ...
+        functionEvaluations{1}(end) * 100;
+    offsetInComputationTime = ( computationTimes(i) - computationTimes(1) ) / ...
+        computationTimes(1) * 100;
+    text(offsetInFunctionEvaluations,rmsError(4,i)*1e3,[num2str(offsetInComputationTime','%.1f'),' %  '],...
+        'FontSize',15,'HorizontalAlignment','right','VerticalAlignment','bottom');
 end
 hold off
-xlabel('Number of Function Evaluations [-]')
+xlabel('Offset in Function Evaluations [%]')
 ylabel('RMS Position Error [m]')
-legend(legendStrings{:},'Location','Best')
+[L,icons] = legend(legendLabels{:},'Location','NE');
+for i = 1:numberOfNormalizationMethods
+    icons(i).FontSize = 12.5;
+    icons(i+numberOfNormalizationMethods).Children.MarkerSize = 10;
+end
 set(gca,'FontSize',15)
 grid on
 if saveFigure, saveas(F,'../../Report/figures/quat_error','epsc'), end

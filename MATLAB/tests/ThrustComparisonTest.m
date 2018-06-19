@@ -183,7 +183,7 @@ for m = 1:length(thrustValues)
     legend(propagatorNames(1:end-1),'Location','Best')
     set(gca,'FontSize',15,'YScale','log')
     grid on
-    if saveFigure, saveas(F,['../../Report/figures/rms_var_thrust_',num2str(m),num2str(testCase)],'epsc'),
+    if saveFigure, saveas(F,['../../Report/figures/rms_var_thrust_',num2str(m)],'epsc'),
     else, title(['Thrust ',num2str(thrustValues(m))]), end
     
     %...Plot RMS error for constant step size
@@ -198,6 +198,6 @@ for m = 1:length(thrustValues)
     legend(propagatorNames(1:end-1),'Location','Best')
     set(gca,'FontSize',15,'YScale','log')
     grid on
-    if saveFigure, saveas(F,['../../Report/figures/rms_const_thrust_',num2str(m),num2str(testCase)],'epsc'),
+    if saveFigure, saveas(F,['../../Report/figures/rms_const_thrust_',num2str(m)],'epsc'),
     else, title(['Thrust ',num2str(thrustValues(m))]), end
 end
