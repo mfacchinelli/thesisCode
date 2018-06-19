@@ -113,9 +113,15 @@ Tri_ant.facevertexcdata = 4*(sqrt(sum(Tri_ant.vertices.^2,2))-4);
 if showFigure
     F = figure;
     hold on
-    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 1, 0, 0, 'LineWidth', 2 )
-    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 0, 1, 0, 'LineWidth', 2 )
-    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 0, 0, 1, 'LineWidth', 2 )
+    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 1, 0, 0, 'LineWidth',2,'MaxHeadSize',0.5 )
+    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 0, 1, 0, 'LineWidth',2,'MaxHeadSize',0.5 )
+    quiver3( L_bus/2, L_sa - 1, L_bus + L_ant/2, 0, 0, 1, 'LineWidth',2,'MaxHeadSize',0.5 )
+    text( L_bus/2 + 1, L_sa - 1, L_bus + L_ant/2, 'x','FontWeight','bold',...
+        'VerticalAlignment','mid','HorizontalAlignment','right')
+    text( L_bus/2, L_sa, L_bus + L_ant/2, 'y','FontWeight','bold',...
+        'VerticalAlignment','mid','HorizontalAlignment','left')
+    text( L_bus/2, L_sa - 1, L_bus + L_ant/2 + 1, 'z','FontWeight','bold',...
+        'VerticalAlignment','bottom','HorizontalAlignment','center')
     patch(Tri_bus)
     patch(Tri_sa1)
     patch(Tri_sa2)
@@ -131,13 +137,7 @@ if showFigure
         figView = {[127.5,30],[90,0],[180,0],[90,90]};
         figName = {'iso','x','y','z'};
         for i = 1:length(figView)
-            if i == 1
-                legend('x','y','z','Location','South','Orientation','Horizontal')
-            else
-                legend('hide')
-            end
             view(figView{i})
-%             pause(2.5)
             saveas(F,['../../Report/figures/mro_design_',figName{i}],'epsc')
         end
     end

@@ -1,4 +1,4 @@
-%  MATLAB Function < subplotTitle >
+%  MATLAB Function < subplotLegend >
 %
 %  Author:          Michele Facchinelli
 %  Date:            22nd May 2017

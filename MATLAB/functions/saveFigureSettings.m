@@ -5,7 +5,7 @@ if nargout == 1
     if saveFigure % set plot visibility
         set(0,'DefaultFigureVisible','off'), figSizeLarge = [1,1,1440,827];
     else
-        set(0,'DefaultFigureVisible','on'), figSizeLarge = [440,378,840,630];
+        set(0,'DefaultFigureVisible','on'), figSizeLarge = [440,378,560,420];
     end
 elseif nargout == 2
     if saveFigure % set plot visibility
@@ -14,7 +14,7 @@ elseif nargout == 2
         figSizeMedium = [440,378,840,630];
     else
         set(0,'DefaultFigureVisible','on');
-        figSizeLarge = [440,378,840,630];
+        figSizeLarge = [440,378,560,420];
         figSizeMedium = figSizeLarge;
     end
 elseif nargout == 3
@@ -25,7 +25,7 @@ elseif nargout == 3
         figSizeSmall = [440,378,560,420];
     else
         set(0,'DefaultFigureVisible','on');
-        figSizeLarge = [440,378,840,630];
+        figSizeLarge = [440,378,560,420];
         figSizeMedium = figSizeLarge;
         figSizeSmall = figSizeLarge;
     end
