@@ -36,14 +36,14 @@ Z = @(Z_inf, T_star, T_tr) Z_inf ./ ( 1 + pi^(3/2)/2 * (T_star./T_tr).^(1/2) + .
     ( pi + pi^2/4 ) * (T_star./T_tr) );
 T_plot = 0:0.1:1200;
 
-% figure('rend','painters','pos',figSizeSmall)
-% hold on
-% plot(T_plot,Z(Z_inf_1,T_star_1,T_plot))
-% plot(T_plot,Z(Z_inf_2,T_star_2,T_plot))
-% hold off
-% legend('Parker','Lordi-Mates','Location','Best')
-% set(gca,'FontSize',12.5)
-% grid on
+figure
+hold on
+plot(T_plot,Z(Z_inf_1,T_star_1,T_plot),'LineWidth',1.25)
+plot(T_plot,Z(Z_inf_2,T_star_2,T_plot),'LineWidth',1.25,'LineStyle','--')
+hold off
+legend('Parker','Lordi-Mates','Location','Best')
+set(gca,'FontSize',15)
+grid on
 
 T_ref = [3103.0,3339.0,6159.0,3371.0,2256.0];
 1./Z(Z_inf_1,T_star_1,T_ref)

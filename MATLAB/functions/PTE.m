@@ -1,4 +1,4 @@
-function [tp,DV,Da,DP] = pte(time,aero,cart,kepl)
+function [tp,DV,Da,DP] = PTE(time,aero,cart,kepl)
 
 %...Constants
 mu = 4.282e13;      % Mars gravitational parameter

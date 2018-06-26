@@ -7,7 +7,8 @@ addpath data other Kalman
 
 %% Access Data
 
-fileID = fopen('/Users/Michele/Desktop/KF/EKFMeasurementHistory.dat','r');
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFMeasurementHistory.dat';
+fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f','CollectOutput',true,'Delimiter',',');
 z_k = cpp_result{1}(:,2:end)';
 fclose(fileID);
@@ -124,7 +125,7 @@ toc
 
 %% Final State
 
-save('/Users/Michele/Desktop/KF/ukf.mat','xx')
+save('/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/ukf.mat','xx')
 
 %...Show final state
 x_k1_k1

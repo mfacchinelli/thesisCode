@@ -5,7 +5,7 @@ addpath tests data functions
 
 %...Figure settings
 plotAllFigures = false;
-saveFigure = true;
+saveFigure = false;
 [figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Result repository
@@ -19,7 +19,7 @@ repository = fullfile(TudatApplicationOutput,'Propagators');
 %	3: Circular orbit at LEO (Low Earth Orbit)
 % 	4: Molniya orbit
 %	5: Low-thrust trajectory
-testCase = 4;
+testCase = 0;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;
@@ -109,6 +109,12 @@ for j = 1:length(integrators)
         for i = 1:length(propagators)
             if ~( i == length(propagators) && j == length(integrators) ) && ...
                     ~( i == length(propagators) && k ~= 1 )
+%                 if i == length(propagators) % <<<<<<<------ USMEM as reference
+%                     repository_old = repository;
+%                     [repository,folder] = fileparts(repository);
+%                     repository = fullfile(repository,'USMEM',folder);
+%                 end
+                
                 %...Get orbital data
                 fileName = fullfile(repository,['orbit_',...
                     propagators{i},'_',integrators{j},'_1_',num2str(k),'.dat']);
@@ -164,6 +170,8 @@ for j = 1:length(integrators)
                     set(gca,'FontSize',15,'YScale','log')
                     title(propagatorNames{i})
                 end
+                
+%                 if i == length(propagators), repository = repository_old; end % <<<<<<<------ USMEM as reference
             end
         end
     end
@@ -448,6 +456,19 @@ legend(propagatorNames(1:end-1),'Location','Best')
 set(gca,'FontSize',15,'YScale','log')
 grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_const_',num2str(testCase)],'epsc'), end
+
+F = figure('rend','painters','pos',figSizeSmall);
+hold on
+for i = 1:length(propagators)-1
+    plot(computationTimes{i,2,testCase+1},squeeze(rmsError(i,4,2,1:values(2)))*1e3,styles{i},'LineWidth',1.5,'MarkerSize',10)
+end
+hold off
+xlabel('Computation Time [s]')
+ylabel('RMS Position Error [m]')
+legend(propagatorNames(1:end-1),'Location','Best')
+set(gca,'FontSize',15,'YScale','log')
+grid on
+if saveFigure, saveas(F,['../../Report/figures/rms_const_time_',num2str(testCase)],'epsc'), end
 
 %% Plot USM Elements
 

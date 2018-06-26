@@ -30,8 +30,7 @@ cd ~/tudatBundle/build; make test_UnifiedStateModelStateDerivative -j 14; cd ~/t
 ##########################################################################################
 ### Run Example Sphere
 
-cd /Users/Michele/Software/SPARTA/examples/sphere
-mpirun -n 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
+cd /Users/Michele/Software/SPARTA/examples/sphere; mpirun -n 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
 
 ##########################################################################################
 ### Run MRO

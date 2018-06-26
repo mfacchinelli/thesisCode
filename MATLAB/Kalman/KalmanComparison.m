@@ -3,39 +3,45 @@ addpath Kalman
 
 %% Load MATLAB EKF and UKF Output
 
-mat_ekf = load('/Users/Michele/Desktop/KF/ekf.mat');
-mat_ukf = load('/Users/Michele/Desktop/KF/ukf.mat');
+mat_ekf = load('/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/ekf.mat');
+mat_ukf = load('/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/ukf.mat');
 
 %% Load C++ EKF Output
 
-fileID = fopen('/Users/Michele/Desktop/KF/EKFActualStateHistory.dat','r');
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFActualStateHistory.dat';
+fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 x_cpp = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
-fileID = fopen('/Users/Michele/Desktop/KF/EKFEstimatedStateHistory.dat','r');
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFEstimatedStateHistory.dat';
+fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 x_cor_cpp = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
-fileID = fopen('/Users/Michele/Desktop/KF/EKFMeasurementHistory.dat','r');
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFMeasurementHistory.dat';
+fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f','CollectOutput',true,'Delimiter',',');
 z_cpp = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
 %% Load C++ UKF Output
 
-% fileID = fopen('/Users/Michele/Desktop/KF/UKFActualStateHistory.dat','r');
+% filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/UKFActualStateHistory.dat';
+% fileID = fopen(filename,'r');
 % cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 % x_cpp_ukf = cpp_result{1}(:,2:end)';
 % fclose(fileID);
 
-fileID = fopen('/Users/Michele/Desktop/KF/UKFEstimatedStateHistory.dat','r');
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/UKFEstimatedStateHistory.dat';
+fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 x_cor_cpp_ukf = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
-% fileID = fopen('/Users/Michele/Desktop/KF/UKFMeasurementHistory.dat','r');
+% filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/UKFMeasurementHistory.dat';
+% fileID = fopen(filename,'r');
 % cpp_result = textscan(fileID,'%f %f','CollectOutput',true,'Delimiter',',');
 % z_cpp_ukf = cpp_result{1}(:,2:end)';
 % fclose(fileID);
