@@ -31,11 +31,14 @@ switch mode
             for i = 1:3
                 subplot(1,3,i)
                 hold on
-                scatter(tabular_interp(:,i+1),tabular_interp(:,1)/1e3)
+                plot(tabular_interp(:,i+1),tabular_interp(:,1)/1e3)
                 scatter(tabular_mean(:,i),altitude)
                 if i == 1 || i == 2
                     if i == tab_atm_param(tab_atm_param==densLoc)
                         scatter(0.02*exp(-hs_interp/11.1),hs_interp), xlim([1e-30,1e0])
+                        scatter(tabular_interp(150,2)*exp((hs_interp(150)-hs_interp)/11.1),hs_interp)
+                        xlim([1e-30,1e0])
+                        legend('Mean','Interpolated','h_0 = 0','h_0 = 110')
                     end
                     set(gca,'XScale','log')
                 end
