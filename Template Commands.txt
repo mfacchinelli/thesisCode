@@ -5,7 +5,7 @@ cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_qua
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_propagatorsComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison -j 4
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_thesis -j 4
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_thesis -j 4
 
 ##########################################################################################
 ### Run on Server

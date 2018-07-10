@@ -11,8 +11,8 @@ mu = 4.282e13;
 clc;
 
 %...Elliptical orbit
-periapsis = 165e3+radius;
-apoapsis = 47500e3+radius;
+periapsis = 120e3+radius;
+apoapsis = 45000e3+radius;
 % periapsis = 200e3+radius;
 % apoapsis = 250e3+radius;
 % periapsis = 100e6+radius;
@@ -24,6 +24,11 @@ e = (apoapsis-periapsis)/(apoapsis+periapsis);
 %...Print
 fprintf('Semi-major axis: %f\n',a)
 fprintf('Eccentricity: %f\n',e)
+
+%...Flight path angle at atmosphere interface
+theta_atm = 2*pi - acos( ( a * (1-e^2) / (250e3+radius) - 1 ) / e );
+gamma_atm = atan2( e * sin( theta_atm ), 1 + e * cos( theta_atm ) );
+rad2deg(gamma_atm)
 
 %% Hyperbolic Initial Conditions
 
@@ -46,8 +51,8 @@ sqrt(mu*(2/(a*(1-1.2))-1/a))
 clc;
 
 %...Elliptical orbit
-semiMajorAxis = 23617.8637e3;
-eccentricity = 0.833437;
+semiMajorAxis = 27228500;
+eccentricity = 0.869218;
 
 rp = (semiMajorAxis*(1-eccentricity) - radius)/1e3;
 ra = (semiMajorAxis*(1+eccentricity) - radius)/1e3;

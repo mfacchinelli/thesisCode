@@ -7,7 +7,7 @@ addpath data functions
 radius = 3.390e6;
 mu = 4.282e13;
 omega_mars = 2*pi/(24*3600 + 39*60 + 35.244);
-atm_interface = 250e3;
+atm_interface = 200e3;
 
 %...Satellite parameters
 m = 1000;
@@ -18,8 +18,8 @@ K = m/A/CD;
 
 %% Access Data
 
-start = 6000;
-stop = 6450;
+start = 6050;
+stop = 6350;
 
 %...Get orbital data
 fileID = fopen('/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/Aerobraking/orbit.dat');
@@ -48,7 +48,7 @@ altitude = radial - radius;
 velocity = sqrt(mu*(2./radial-1./orbit(:,1)));
 
 %...Adapt
-loc = true(size(altitude));% altitude <= atm_interface;
+loc = true(size(altitude));%altitude <= atm_interface;
 time = time(loc);
 orbit = orbit(loc,:);
 sphe = sphe(loc); aero = aero(loc); rad = rad(loc); sun = sun(loc);
@@ -88,7 +88,7 @@ end
 % imu_error = [bias;scale;misalign];
 % acc_imu = bias + (eye(3) + diag(scale) + mis(misalign)) * (aero+rad) + std_imu*randn(size(aero));
 % acc_imu = (eye(3) + diag(scale) + mis(misalign))\(acc_imu-bias);
-acc_imu = sum([aero,rad,sun,ven,ear,jup,sat],2) + std_imu*randn(size(aero));
+acc_imu = abs(sum([aero,rad,sun,ven,ear,jup,sat],2) + std_imu*randn(size(aero)));
 
 %% Find Area Division
 
@@ -216,23 +216,23 @@ grid on
 %% Fit Density
 
 %...Get before peak
-peak = find(altitude==min(altitude));
-z = altitude(1:peak);
+loc = ( altitude <= atm_interface ) & ( true(size(find(altitude==min(altitude)),1)) );
+z = altitude(loc);
 
 %...Get density
-V = velocity(1:peak);
-rho = acc_imu(1:peak)*2*K./V.^2/sqrt(1+(CL/CD)^2);
+V = velocity(loc);
+rho = acc_imu(loc)*2*K./V.^2/sqrt(1+(CL/CD)^2);
 
-%...Fit
-ft = fittype('rho0 - altitude / H',...
-    'independent',{'altitude'},...
-    'dependent',{'rho'},...
-    'coefficients',{'rho0','H'});
-lsq = fit(z,log(rho),ft,'StartPoint',[log(0.01),10e3],'Lower',[log(0),0],'Robust',...
-    'LAR','Algorithm','Trust-Region');
-rho_lsq = @(h) exp(lsq.rho0) * exp( - h / lsq.H );
+x0 = [log(0.02);1/11.1e3];
+A = zeros(length(z),2);
+for i = 1:length(z)
+    A(i,:) = - [x0(2),x0(1)] .* z(i);
+end
+x_hat = (A'*A)\A'*log(rho);
 
-table([exp(lsq.rho0);lsq.H],[0.02;11.1e3])
+table([exp(x_hat(1));1/x_hat(2)],[0.02;11.1e3])
+
+rho_lsq = @(h) exp(x_hat(1)) * exp( - h * x_hat(2) );
 
 %...Plot
 figure;
@@ -243,3 +243,24 @@ scatter(z,rho)
 hold off
 set(gca,'yscale','log')
 grid on
+
+% %...Fit
+% ft = fittype('rho0 - altitude / H',...
+%     'independent',{'altitude'},...
+%     'dependent',{'rho'},...
+%     'coefficients',{'rho0','H'});
+% lsq = fit(z,log(rho),ft,'StartPoint',[log(0.01),10e3],'Lower',[log(0),0],'Robust',...
+%     'LAR','Algorithm','Trust-Region');
+% rho_lsq = @(h) exp(lsq.rho0) * exp( - h / lsq.H );
+% 
+% table([exp(lsq.rho0);lsq.H],[0.02;11.1e3])
+
+% %...Plot
+% figure;
+% hold on
+% plot(z,rho_lsq(z))
+% scatter(z,rho)
+% % plot(z,rho_true(z))
+% hold off
+% set(gca,'yscale','log')
+% grid on

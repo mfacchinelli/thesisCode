@@ -1,15 +1,16 @@
-function [tp,DV,Da,DP] = PTE(time,aero,cart,kepl,actual_aero)
+function [tp,DV,Da,DP] = pte2(time,aero,cart,kepl,actual_aero)
 
 %...Constants
 mu = 4.282e13;      % Mars gravitational parameter
 Rm = 3.390e6;       % Mars radius
-atm_int = 250e3;	% atmospheric interface altitude
+atm_int = 500e3;	% atmospheric interface altitude
 
 %...Reduce data
 h = sqrt(sum(cart.^2,2)) - Rm;
 loc = h < atm_int;
-time = time(loc);
-aero = aero(loc);
+time = time(loc,:);
+theta = kepl(loc,end); theta(theta>pi) = theta(theta>pi) - 2*pi; % use true anomaly as independent variable
+aero = sqrt(sum(aero(loc,:).^2,2));
 kepl = kepl(loc,:);
 actual_aero = actual_aero(loc,:);
 
@@ -18,29 +19,37 @@ actual_aero = actual_aero(loc,:);
 %...Start plotting
 figure;
 hold on
-plot(time,aero,'LineWidth',1.5)
+plot(theta,aero,'LineWidth',1.5)
 
 %...First iteration
 a0 = find(max(aero)==aero)-100;
 b0 = find(max(aero)==aero)+100;
 
 %...Iterative method
-c = areaBisection(time,aero,a0,b0);
-tp = time(c);
+c = areaBisection(theta,aero,a0,b0);
+theta(c)
+tp = interp1(theta,time,theta(c),'spline');
 
 %...Finish plotting
-plot(time,actual_aero,'LineWidth',1.5,'LineStyle','--')
-plot([time(c),time(c)],ylim,'LineWidth',2,'LineStyle',':')
+plot(theta,actual_aero,'LineWidth',1.5,'LineStyle','--')
+plot([theta(c),theta(c)],ylim,'LineWidth',2,'LineStyle',':')
 hold off
-xlabel('Time [min]')
+xlabel('\theta [rad]')
 ylabel('Acceleration Norm [m/s^2]')
 legend('IMU','Actual','Barycenter')
 grid on
 
+%% 
+
+a0 = kepl(1,1); n0 = sqrt(mu/a0^3);
+e0 = kepl(1,2);
+dM = tp * n0;
+[dE,dT] = ma2eta(dM,e0);
+
 %% Period Change
 
 %...Find Delta V
-DV = -trapz(time,aero); % time is in minutes
+DV = -trapz(time,aero);
 
 %...Find Delta a
 a0 = kepl(1,1); n0 = sqrt(mu/a0^3);

@@ -26,6 +26,10 @@ switch mode
         fclose(fileID);
         
         %..Plot mean atmosphere
+        referenceAltitude = 158;
+        hs_interp(referenceAltitude)
+        densityAtReferenceAltitude = tabular_interp(referenceAltitude,2)
+        localScaleHeight = (tabular_interp(referenceAltitude,4)*tabular_interp(referenceAltitude,5)/3.711)
         if showFigures
             figure;
             for i = 1:3
@@ -36,7 +40,8 @@ switch mode
                 if i == 1 || i == 2
                     if i == tab_atm_param(tab_atm_param==densLoc)
                         scatter(0.02*exp(-hs_interp/11.1),hs_interp), xlim([1e-30,1e0])
-                        scatter(tabular_interp(150,2)*exp((hs_interp(150)-hs_interp)/11.1),hs_interp)
+                        scatter(densityAtReferenceAltitude*exp((hs_interp(referenceAltitude)-hs_interp)/...
+                            (localScaleHeight/1e3)),hs_interp)
                         xlim([1e-30,1e0])
                         legend('Mean','Interpolated','h_0 = 0','h_0 = 110')
                     end
