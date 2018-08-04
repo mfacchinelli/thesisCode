@@ -1,11 +1,19 @@
 ##########################################################################################
 ### Run Tudat
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_quaternionTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest -j 4
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_quaternionTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest -j 8
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_propagatorsComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison -j 4
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_propagatorsComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison -j 8
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 4 application_thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_thesis -j 4
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_Thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_Thesis
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnly; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMAN; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
+
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_PropagatorTypesComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/bin/applications; time ./application_PropagatorTypesComparison
+
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_marsTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_marsTest
+
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_sparta; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_sparta
 
 ##########################################################################################
 ### Run on Server
@@ -26,6 +34,8 @@ cd ~/tudatBundle/build; make application_propagatorsComparison -j 14; cd ~/tudat
 cd ~/tudatBundle/build; make application_quaternionTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest -j 14
 
 cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_spartaTest -j 14
+
+cd ~/tudatBundle/build; make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_Thesis -j 14
 
 cd ~/tudatBundle/build; make test_UnifiedStateModelStateDerivative -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnifiedStateModelStateDerivative -j 14
 

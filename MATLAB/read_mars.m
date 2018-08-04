@@ -5,6 +5,8 @@ radius = 3.396e6;
 mu = 4.282e13;
 % radius = 695.508e6;
 % mu = 1.32712440019e20;
+radius = 6378.136e3;
+mu = 3.918e14;
 
 %% Initial Conditions
 
@@ -17,6 +19,8 @@ apoapsis = 45000e3+radius;
 % apoapsis = 250e3+radius;
 % periapsis = 100e6+radius;
 % apoapsis = 200e6+radius;
+apoapsis = 420e3 + radius;
+periapsis = 380e3 + radius;
 
 a = (apoapsis+periapsis)/2;
 e = (apoapsis-periapsis)/(apoapsis+periapsis);

@@ -13,7 +13,7 @@ if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
 genTable = true;
-showFigures = true;
+showFigures = false;
 saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
@@ -434,7 +434,7 @@ sprintf([repmat('\\num{%.0f} & ',[1,4]),'\\num{%0.f} \\\\\n'],fulldata)
 
 %% Close All Figures
 
-close all;
+if saveFigure, close all, end
 
 %% Functions
 

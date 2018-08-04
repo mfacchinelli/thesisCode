@@ -42,6 +42,8 @@ switch mode
                         scatter(0.02*exp(-hs_interp/11.1),hs_interp), xlim([1e-30,1e0])
                         scatter(densityAtReferenceAltitude*exp((hs_interp(referenceAltitude)-hs_interp)/...
                             (localScaleHeight/1e3)),hs_interp)
+%                         scatter(2.2057e-09*exp((136.096-hs_interp)/7.59365),hs_interp)
+                        scatter(2.77417e-09*exp((126.833-hs_interp)/13.1984),hs_interp)
                         xlim([1e-30,1e0])
                         legend('Mean','Interpolated','h_0 = 0','h_0 = 110')
                     end

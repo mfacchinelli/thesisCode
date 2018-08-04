@@ -9,3 +9,4 @@
 /SPARTA/verification/
 *.m~
 /Tudat GitHub
+*.DS_Store
