@@ -13,7 +13,11 @@ cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_Pro
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_marsTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_marsTest
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_sparta; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_sparta
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_spartaTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_spartaTest
+
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_BiasEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_BiasEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat;
+
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_LinearAlgebra; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_LinearAlgebra
 
 ##########################################################################################
 ### Run on Server
@@ -29,15 +33,15 @@ matlab -r -nodesktop -nodisplay -nosplash -nojvm 'RunSPARTAServer'
 matlab -r -nodesktop -nodisplay -nosplash -nojvm 'RunSPARTAServerGallis'
 
 #--- Build and Run Application ---#
-cd ~/tudatBundle/build; make application_propagatorsComparison -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison -j 14
+cd ~/tudatBundle/build; make application_propagatorsComparison -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison
 
-cd ~/tudatBundle/build; make application_quaternionTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest -j 14
+cd ~/tudatBundle/build; make application_quaternionTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest
 
-cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_spartaTest -j 14
+cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_spartaTest
 
-cd ~/tudatBundle/build; make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_Thesis -j 14
+cd ~/tudatBundle/build; make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_Thesis
 
-cd ~/tudatBundle/build; make test_UnifiedStateModelStateDerivative -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnifiedStateModelStateDerivative -j 14
+cd ~/tudatBundle/build; make test_UnifiedStateModelStateDerivative -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnifiedStateModelStateDerivative
 
 ##########################################################################################
 ### Run Example Sphere

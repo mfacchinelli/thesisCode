@@ -13,7 +13,7 @@ if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
 genTable = true;
-showFigures = false;
+showFigures = true;
 saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
@@ -238,6 +238,45 @@ if showFigures && ~saveFigures
     plotSettings(S,'',logspace(log10(hs(1)),log10(hs(end)),7),NaN,true,true)
 end
 
+%% Perturbed Atmospheric Density
+
+%...Get independent variables
+lonP = ( lonH - longitude(1) ) / ( longitude(end) - longitude(1) ) * 360;
+latP = ( latH - latitude(1) ) / ( latitude(end) - latitude(1) ) * 360;
+altP = ( altH - altitude(1) ) / ( altitude(end) - altitude(1) ) * 360 * 1000.5;
+
+%...Get random coefficients
+a = 0.25 * randn(1,6);
+% a = [-0.0523795   0.692141   0.145951   0.373778  -0.921233  -0.283825];
+a = [-0.0402829  -0.224041  -0.486089   0.371841  0.0312022   0.405809];
+
+%...Compute perturbing term
+perturbations = abs( 1.5 + ...
+    a(1) * cosd(lonP) + a(2) * sind(lonP) + ...
+    a(3) * cosd(latP) + a(4) * sind(latP) + ...
+    a(5) * cosd(altP) + a(6) * sind(altP) );
+perturbations( perturbations<0.5 ) = 0.5;
+
+% %...Plot results
+% F = figure('rend','painters','pos',figSizeLarge);
+% for h = 1:length(hs_loc_plot)
+%     subplot(2,3,h)
+%     S = pcolor(lonH(:,:,1),latH(:,:,1),perturbations(:,:,hs_loc_plot(h)));
+% %     S = pcolor(lonH(:,:,1),latH(:,:,1),perturbations(:,:,hs_loc_plot(h)) .* dataTimeAvg(:,:,hs_loc_plot(h),densLoc));
+%     plotSettings(S,'kg m^{-3}',[],hs_plot(h),false,false)
+% end
+% if ~saveFigures, subplotTitle(['Perturbed Average Density']),
+% else, saveas(F,['../../Report/figures/mars_dens_mean_pert'],'epsc'), end
+
+figure
+S = slice(lonH,latH,altH,perturbations,[],[],altitude(1:10:end));
+colormap jet
+set(S,'EdgeColor','none','FaceColor','interp','FaceAlpha','interp')
+alpha('color')
+alphamap('rampdown')
+alphamap('increase',0.25)
+set(gca,'ZScale','log')
+
 %% Atmospheric Composition
 
 %...Compute number density per altitude
@@ -434,7 +473,7 @@ sprintf([repmat('\\num{%.0f} & ',[1,4]),'\\num{%0.f} \\\\\n'],fulldata)
 
 %% Close All Figures
 
-if saveFigure, close all, end
+if saveFigures, close all, end
 
 %% Functions
 

@@ -4,7 +4,7 @@ addpath tests data functions
 %% Settings
 
 %...Figure settings
-saveFigure = true;
+saveFigure = false;
 [figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Result repository

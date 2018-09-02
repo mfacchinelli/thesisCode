@@ -51,7 +51,7 @@ switch testCase
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 50;
-        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0];%, 250.0, 300.0];
+        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0];
         repository = fullfile(repository,'circ');
     case 4 % Molniya orbit
         R = 6378.1363;
@@ -470,52 +470,6 @@ set(gca,'FontSize',15,'YScale','log')
 grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_const_time_',num2str(testCase)],'epsc'), end
 
-%% Plot USM Elements
+%% Close All Figures
 
-%...Loop over propagators
-if plotAllFigures
-    for i = 2:4
-        switch propagators{i}
-            case 'usm7'
-                spyValue = 4;
-                correctState = @(x) horzcat(x,abs(1-sqrt(sum(x(:,4:7).^2,2))));
-                labels = usm7Labels;
-            case 'usm6'
-                spyValue = 3;
-                correctState = @(x)x;
-                labels = usm6Labels;
-            case 'usmem'
-                spyValue = 3;
-                correctState = @(x)x;
-                labels = usmemLabels;
-            otherwise
-                error('USM not recognized')
-        end
-        
-        %...Get USM data
-        fileName = fullfile(repository,['usm_',propagators{i},'_',integrators{1},'_1_1.dat']);
-        fileID = fopen(fileName);
-        usm = textscan(fileID,repmat('%f ',[1,8]),'CollectOutput',true,'Delimiter',',');
-        time = (usm{1}(:,1)-usm{1}(1))/scaling; usm = usm{1}(:,2:end); usm(:,1:3) = usm(:,1:3)/1e3;
-        usm = correctState(usm);
-        fclose(fileID);
-        
-        %...Plot USM elements
-        F = figure('rend','painters','pos',figSizeLarge);
-        for j = 1:length(labels)
-            subplot(2,spyValue,j)
-            hold on
-            plot(time,usm(:,j),'LineWidth',1.1)
-            if i > 2
-                if j >= 4
-                    plot(time,usm(:,7),'LineStyle','--')
-                end
-            end
-            hold off
-            xlabel(timeLabel)
-            ylabel(labels{j})
-            grid on
-            set(gca,'FontSize',15)
-        end
-    end
-end
+if saveFigure, close all, end

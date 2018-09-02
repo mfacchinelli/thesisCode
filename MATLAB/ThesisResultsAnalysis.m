@@ -9,9 +9,13 @@ saveFigure = false;
 [figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Constants
-marsRadius = 3.396e6;
+marsRadius = 3389526.666666667;
 marsGravitationalParameter = 4.282e13;
 marsAtmosphericInterface = 175;
+
+%...Plot settings
+loadMeasurements = false;
+loadFilter = true;
 
 %...Labels
 timeConversion = 3600 * 24;
@@ -31,7 +35,7 @@ outputFolder = 'SimulationOutputTransOnlyIMAN';
 filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/cartesianPropagated.dat'];
 fileID = fopen(filename,'r');
 CartesianPropagatedResults = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-simulationTime = ( CartesianPropagatedResults{1}(:,1) - CartesianPropagatedResults{1}(1) ) / timeConversion; 
+simulationTime = ( CartesianPropagatedResults{1}(:,1) - CartesianPropagatedResults{1}(1) ) / timeConversion;
 CartesianPropagatedResults = CartesianPropagatedResults{1}(:,2:end);
 CartesianPropagatedResults(:,1:3) = CartesianPropagatedResults(:,1:3) / 1e3;
 fclose(fileID);
@@ -108,6 +112,32 @@ clear filename fileID
 % %...Compute commanded quaternions
 % commandedRotationalState = dcm2quat(commandedDirectionCosineMatrix);
 
+%% Load C++ Results For Navigation Filter
+
+%...Only if filtering is toggled
+if loadFilter
+    %...Load translational motion
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/filterStateEstimates.dat'];
+    fileID = fopen(filename,'r');
+    filterStateEstimatedResults = textscan(fileID,repmat('%f',[1,13]),'Delimiter',',','CollectOutput',true);
+    filterTime = ( filterStateEstimatedResults{1}(:,1) - filterStateEstimatedResults{1}(1) ) / timeConversion;
+    filterStateEstimatedResults = filterStateEstimatedResults{1}(:,2:end);
+    filterStateEstimatedResults(:,1:3) = filterStateEstimatedResults(:,1:3)/1e3;
+    fclose(fileID);
+    
+    %...Load Keplerian translational motion
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,...
+        '/filterCovarianceEstimates.dat'];
+    fileID = fopen(filename,'r');
+    filterCovarianceEstimatedResults = textscan(fileID,repmat('%f',[1,13]),'Delimiter',',','CollectOutput',true);
+    filterCovarianceEstimatedResults = filterCovarianceEstimatedResults{1}(:,2:end);
+    filterCovarianceEstimatedResults(:,1:3) = filterCovarianceEstimatedResults(:,1:3)/1e3;
+    fclose(fileID);
+       
+    %...Clean up
+    clear filename fileID
+end
+
 %% Load C++ Results For Dependent Variables
 
 %...Load dependent variables
@@ -129,23 +159,27 @@ clear filename fileID
 
 %% Load C++ Results For Measurements
 
-%...Load IMU measurements
-filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/inertialMeasurements.dat'];
-fileID = fopen(filename,'r');
-inertialMeasurements = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-measurementTime = ( inertialMeasurements{1}(:,1) - inertialMeasurements{1}(1) ) / timeConversion; 
-inertialMeasurements = inertialMeasurements{1}(:,2:end);
-fclose(fileID);
-
-%...Load expected measurements
-filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/expectedlMeasurements.dat'];
-fileID = fopen(filename,'r');
-expectedMeasurements = textscan(fileID,repmat('%f',[1,4]),'Delimiter',',','CollectOutput',true);
-expectedMeasurements = expectedMeasurements{1}(:,2:end);
-fclose(fileID);
-
-%...Clean up
-clear filename fileID
+%...Only if measurements are toggled
+if loadMeasurements
+    %...Load IMU measurements
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,...
+        '/accelerometerMeasurements.dat'];
+    fileID = fopen(filename,'r');
+    accelerometerMeasurements = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
+    measurementTime = ( accelerometerMeasurements{1}(:,1) - accelerometerMeasurements{1}(1) ) / timeConversion;
+    accelerometerMeasurements = accelerometerMeasurements{1}(:,2:end);
+    fclose(fileID);
+    
+    %...Load expected measurements
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/expectedlMeasurements.dat'];
+    fileID = fopen(filename,'r');
+    expectedMeasurements = textscan(fileID,repmat('%f',[1,4]),'Delimiter',',','CollectOutput',true);
+    expectedMeasurements = expectedMeasurements{1}(:,2:end);
+    fclose(fileID);
+    
+    %...Clean up
+    clear filename fileID
+end
 
 %% Plot 3D Orbit
 
@@ -202,7 +236,7 @@ F = figure('rend','painters','pos',figSizeSmall);
 hold on
 scatter(1:length(actualPeriapses),actualPeriapses,'filled')
 scatter(1:length(estimatedPeriapses),estimatedPeriapses,'filled')
-% scatter(1:length(commandedPeriapses),commandedPeriapses,'filled')
+% scatter(1:length(targetedPeriapses),targetedPeriapses,'filled')
 hold off
 xlabel('Orbit Number [-]')
 ylabel('Altitude [km]')
@@ -273,36 +307,73 @@ subplotLegend({'Actual','Estimated'})
 % end
 % subplotLegend({'Actual','Estimated','Commanded'})
 
+%% Plot Filter States
+
+%...Only if filtering is toggled
+if loadFilter
+    %...Plot Cartesian translational motion
+    F = figure('rend','painters','pos',figSizeLarge);
+    for i = 1:6
+        subplot(2,3,i)
+        hold on
+        plot(filterTime,filterStateEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
+        plot(filterTime,sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(filterTime,-sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        hold off
+        xlabel(timeLabel)
+        set(gca,'FontSize',15)
+        grid on
+    end
+    
+    %...Plot instrument errors
+    F = figure('rend','painters','pos',figSizeLarge);
+    for i = 7:12
+        subplot(2,3,i-6)
+        hold on
+        plot(filterTime,filterStateEstimatedResults(:,i),'LineWidth',1.25)
+        plot(filterTime,sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(filterTime,-sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        hold off
+        xlabel(timeLabel)
+        set(gca,'FontSize',15)
+        grid on
+    end
+end
+
 %% Plot Other Results
 
-% %...Plot measurements
-% F = figure('rend','painters','pos',figSizeLarge);
-% 
-% subplot(1,2,1)
-% hold on
-% for i = 1:3
-%     plot(measurementTime,inertialMeasurements(:,i),'LineWidth',1.25)
-%     plot(onboardTime,expectedMeasurements(:,i),'LineWidth',1.25,'LineStyle','--')
-%     plot(simulationTime,dependentVariables(:,i+3),'LineWidth',1.25,'LineStyle',':')
-% end
-% hold off
-% xlabel(timeLabel)
-% ylabel('Translational Acceleration [m s^{-1}]')
-% set(gca,'FontSize',15)
-% grid on
-% legend('x_{IMU}','x_{exp}','x_{real}',...
-%     'y_{IMU}','y_{exp}','y_{real}',...
-%     'z_{IMU}','z_{exp}','z_{real}')
-% % legend('x_{IMU}','x_{real}','y_{IMU}','y_{real}','z_{IMU}','z_{real}')
-% 
-% subplot(1,2,2)
-% plot(measurementTime,inertialMeasurements(:,4:6),'LineWidth',1.25)
-% hold off
-% xlabel(timeLabel)
-% ylabel('Rotational Velocity [rad s^{-1}]')
-% set(gca,'FontSize',15)
-% grid on
-% legend('x','y','z')
+%...Only if measurements are toggled
+if loadMeasurements
+    %...Plot measurements
+    F = figure('rend','painters','pos',figSizeLarge);
+    
+    subplot(1,2,1)
+    hold on
+    for i = 1:3
+        plot(measurementTime,accelerometerMeasurements(:,i),'LineWidth',1.0)
+        plot(simulationTime,smooth(dependentVariables(:,i+3),25),'LineWidth',1.25)
+        plot(onboardTime,expectedMeasurements(:,i),'LineWidth',1.25,'LineStyle','--')
+        plot(simulationTime,dependentVariables(:,i+3),'LineWidth',1.25,'LineStyle',':')
+    end
+    hold off
+    xlabel(timeLabel)
+    ylabel('Translational Acceleration [m s^{-1}]')
+    set(gca,'FontSize',15)
+    grid on
+    legend('x_{IMU}','x_{smooth}','x_{exp}','x_{real}',...
+        'y_{IMU}','y_{smooth}','y_{exp}','y_{real}',...
+        'z_{IMU}','z_{smooth}','z_{exp}','z_{real}')
+    % legend('x_{IMU}','x_{real}','y_{IMU}','y_{real}','z_{IMU}','z_{real}')
+    
+    subplot(1,2,2)
+    plot(measurementTime,accelerometerMeasurements(:,4:6),'LineWidth',1.25)
+    hold off
+    xlabel(timeLabel)
+    ylabel('Rotational Velocity [rad s^{-1}]')
+    set(gca,'FontSize',15)
+    grid on
+    legend('x','y','z')
+end
 
 % %...Plot control torques
 % figure;
@@ -330,7 +401,7 @@ plot(simulationTime,dependentVariables(:,11),'LineWidth',1.25)
 plot([simulationTime(1),simulationTime(end)],[0.19,0.19],'LineWidth',1.25,'LineStyle','--')
 set(gca,'YScale','log')
 hold off
-ylabel('Dynamic Pressure [W m^{-2}]')
+ylabel('Dynamic Pressure [kg m^{-2}]')
 yyaxis right
 hold on
 plot(simulationTime,dependentVariables(:,12),'LineWidth',1.25)
@@ -344,30 +415,33 @@ grid on
 
 %% Plot Density
 
-% %...Find pericenter height
-% estimatedAltitude = sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) - marsRadius / 1e3;
-% pericenter = min( estimatedAltitude );
-% 
-% %...Retireve density
-% aerodynamicAcceleration = sqrt( sum( inertialMeasurements(:,1:3).^2, 2 ) );
-% atmosphericDensity = 2 * 1000 / 37.5 ./ sum( ( CartesianEstimatedResults(1:end-1,4:6) * 1e3 ).^2, 2 ) / ...
-%     sqrt( 1.87^2 + 0.013^2 ) .* aerodynamicAcceleration;
-% 
-% %...Data below atmospheric interface
-% loc = ( estimatedAltitude <= marsAtmosphericInterface );
-% loc(find(estimatedAltitude==pericenter)+1:end) = false;
-% atmospherePhaseTime = simulationTime;%simulationTime( loc );
-% % estimatedAltitude = estimatedAltitude( loc );
-% % atmosphericDensity = atmosphericDensity( loc( 1:end-1 ) );
-% 
-% %...Plot density
-% figure;
-% hold on
-% plot(atmospherePhaseTime(1:end-1),atmosphericDensity,'LineWidth',1.25)
-% plot(atmospherePhaseTime,dependentVariables(:,10),'LineWidth',1.25)
-% hold off
-% xlabel(timeLabel)
-% ylabel('Density [kg m^{-3}]')
-% set(gca,'FontSize',15,'YScale','log')
-% grid on
-% legend('Measured','Actual','Location','Best')
+%...Only if density is toggled
+if loadMeasurements
+    %...Find pericenter height
+    estimatedAltitude = sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) - marsRadius / 1e3;
+    pericenter = min( estimatedAltitude );
+    
+    %...Retireve density
+    aerodynamicAcceleration = sqrt( sum( accelerometerMeasurements(:,1:3).^2, 2 ) );
+    atmosphericDensity = 2 * 1000 / 37.5 / 1.87 ./ ...
+        sum( ( CartesianEstimatedResults(:,4:6) ).^2, 2 ) .* aerodynamicAcceleration;
+    
+    %...Data below atmospheric interface
+%     loc = ( estimatedAltitude <= marsAtmosphericInterface );
+%     loc(find(estimatedAltitude==pericenter)+1:end) = false;
+    atmospherePhaseTime = simulationTime;%simulationTime( loc );
+    % estimatedAltitude = estimatedAltitude( loc );
+    % atmosphericDensity = atmosphericDensity( loc( 1:end-1 ) );
+    
+    %...Plot density
+    figure;
+    hold on
+    plot(atmospherePhaseTime,atmosphericDensity,'LineWidth',1.25)
+%     plot(atmospherePhaseTime,dependentVariables(:,10),'LineWidth',1.25)
+    hold off
+    xlabel(timeLabel)
+    ylabel('Density [kg m^{-3}]')
+    set(gca,'FontSize',15,'YScale','log')
+    grid on
+    % legend('Measured','Actual','Location','Best')
+end
