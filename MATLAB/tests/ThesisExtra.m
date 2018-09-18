@@ -1,26 +1,55 @@
+fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
+addpath functions
+
+%% Read Data
+
+number = 3;
+
+%...Retrieve altitude
+filename = ['/Users/Michele/Desktop/altitude',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+estimatedAltitude = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+estimatedAltitude = estimatedAltitude{1}/1e3;
+estimatedAltitude = estimatedAltitude(1:10:end);
+fclose(fileID);
+
+%...Retrieve altitude
+filename = ['/Users/Michele/Desktop/acceleration',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+measuredAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+measuredAcceleration = measuredAcceleration{1}(1:10:end);
+fclose(fileID);
+
+%...Retrieve altitude
+filename = ['/Users/Michele/Desktop/density',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+estimatedDensity = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+estimatedDensity = estimatedDensity{1}(1:10:end);
+fclose(fileID);
+
+%...Retrieve Keplerian elements
+filename = ['/Users/Michele/Desktop/kepler_',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
+pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
+pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end); 
+fclose(fileID);
+
 %% Fit Atmospheric Data
 
 %...Find pericenter height
-% estimatedAltitude = sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) - marsRadius / 1e3;
-estimatedAltitude = altitude;
 pericenter = min( estimatedAltitude );
 
-%...Retireve density
-% aerodynamicAcceleration = sqrt( sum( inertialMeasurements(:,1:3).^2, 2 ) );
-% atmosphericDensity = 2 * 1000 / 37.5 ./ sum( ( CartesianEstimatedResults(1:end-1,4:6) * 1e3 ).^2, 2 ) / ...
-%     sqrt( 1.87^2 + 0.013^2 ) .* aerodynamicAcceleration;
-atmosphericDensity = accelerationResults;
-
 %...Data below atmospheric interface
-marsAtmosphericInterface = 175;
+marsAtmosphericInterface = 150;
 loc = ( estimatedAltitude <= marsAtmosphericInterface );
 loc(1:find(estimatedAltitude==pericenter)+1:end) = false;
-estimatedAltitude = estimatedAltitude( loc );
-atmosphericDensity = atmosphericDensity( loc );
+altitude = estimatedAltitude( loc );
+atmosphericDensity = estimatedDensity( loc );
 
 %...Least squares of data
-designMatrix = [ ones( size( atmosphericDensity ) ), ( pericenter - estimatedAltitude ) * 1e3 ]; 
-weightMatrix = diag(1./estimatedAltitude.^2);
+designMatrix = [ ones( size( atmosphericDensity ) ), ( pericenter - altitude ) * 1e3 ]; 
+weightMatrix = diag(1./altitude.^2);
 updatedEstimate = ( designMatrix' * weightMatrix * designMatrix ) \ designMatrix' * weightMatrix * log( atmosphericDensity );
 densityFunction = @(h) exp( updatedEstimate( 1 ) ) * exp( updatedEstimate( 2 ) * ( pericenter * 1e3 - h ) );
 
@@ -31,7 +60,7 @@ ft = fittype('rho0 + altitude / H',...
     'independent',{'altitude'},...
     'dependent',{'rho'},...
     'coefficients',{'rho0','H'});
-lsq = fit(( pericenter - estimatedAltitude ) * 1e3,log(atmosphericDensity),ft,...
+lsq = fit(( pericenter - altitude ) * 1e3,log(atmosphericDensity),ft,...
     'StartPoint',[log(2.42386294453635e-08),6532.91178699257],'Robust','LAR','Algorithm','Trust-Region');
 matlabDensityFunction = @(h) exp(lsq.rho0) * exp( h / lsq.H );
 
@@ -44,14 +73,14 @@ table( [ 2.42386294453635e-08; exp( updatedEstimate( 1 ) ); exp( lsq.rho0 ) ], .
 % F = figure('rend','painters','pos',figSizeLarge);
 figure
 hold on
-scatter( atmosphericDensity , estimatedAltitude(1:end) )
-plot( referenceDensity( estimatedAltitude * 1e3 ), estimatedAltitude, 'LineWidth',1.25)
-plot( densityFunction( estimatedAltitude * 1e3 ), estimatedAltitude, 'LineWidth',1.25,'LineStyle','--')
-plot( matlabDensityFunction( ( pericenter - estimatedAltitude ) * 1e3 ), estimatedAltitude, 'LineWidth',1.25,'LineStyle','-.')
+scatter( atmosphericDensity , altitude(1:end) )
+plot( densityFunction( altitude * 1e3 ), altitude, 'LineWidth',1.25,'LineStyle','--')
+plot( matlabDensityFunction( ( pericenter - altitude ) * 1e3 ), altitude, 'LineWidth',1.25,'LineStyle','-.')
+% plot( referenceDensity( altitude * 1e3 ), altitude, 'LineWidth',1.25)
 hold off
 set(gca,'FontSize',15,'XScale','log')
 grid on
-legend('Measured','Reference','Own','MATLAB')
+legend('Measured','Own','MATLAB')%,'Reference')
 
 %% Fit Other Model
 
@@ -59,7 +88,7 @@ clc
 
 %...Initial values
 x = [log( 2.424e-08 ), 1.0 / 6533.0, -1.0, 0.0, 0.0]';
-refAlt = ( estimatedAltitude - min(estimatedAltitude) ) * 1e3;
+refAlt = ( altitude - min(altitude) ) * 1e3;
 twoPiRefAlt = 2*pi*refAlt;
 
 tau = 1e-6;
@@ -90,8 +119,11 @@ for i = 1:10
         lambda = lambda * nu;
         nu = nu * 2;
     end
-    [lambda,rho,dx']
+%     [lambda,rho,dx']
 end
+x = [2.11909e-09      2970.89    -0.428217 -0.000739212   3.3584e-05];
+x(1) = log(x(1)); x(2) = 1/x(2);
+
 newDensityFunction = @(h) exp(x(1)) * exp( x(3) * h * x(2) + x(4) * cos( 2*pi*h*x(2) ) + ...
     x(5) * sin( 2*pi*h*x(2) ) );
 
@@ -116,9 +148,9 @@ table( [ 2.42386294453635e-08; exp( updatedEstimate(1) ); exp( x(1) ); exp( lsq.
 %...Plot result
 figure
 hold on
-scatter( atmosphericDensity, estimatedAltitude(1:end) )
-plot( newDensityFunction( refAlt ), estimatedAltitude, 'LineWidth',1.25,'LineStyle','--')
-plot( matlabDensityFunction( refAlt ), estimatedAltitude, 'LineWidth',1.25,'LineStyle','-.')
+scatter( atmosphericDensity, altitude(1:end) )
+plot( newDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle','--')
+plot( matlabDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle','-.')
 hold off
 set(gca,'FontSize',15,'XScale','log')
 grid on
@@ -126,13 +158,11 @@ legend('Measured','Own','MATLAB')
 
 %% Run PTE
 
-pteKeplerianEstimatedResults = KeplerianEstimatedResults(1:end-1,:);
-pteKeplerianEstimatedResults(:,1) = pteKeplerianEstimatedResults(:,1) * 1e3;
-pteKeplerianEstimatedResults(:,3:end) = deg2rad(pteKeplerianEstimatedResults(:,3:end));
-[tp,DV,Da,DP] = PTE(onboardTime(1:end-1)*timeConversion,sqrt(sum(inertialMeasurements(:,1:3).^2,2)),...
-    CartesianEstimatedResults(1:end-1,:)*1e3,pteKeplerianEstimatedResults,sqrt(sum(dependentVariables(1:end-1,4:6).^2,2)))
-[tp,DV,Da,DP] = pte2(onboardTime(1:end-1)*timeConversion,sqrt(sum(inertialMeasurements(:,1:3).^2,2)),...
-    CartesianEstimatedResults(1:end-1,:)*1e3,pteKeplerianEstimatedResults,sqrt(sum(dependentVariables(1:end-1,4:6).^2,2)))
+clc
+
+[tp,dtheta,DV,Da,DP] = PTE(pteTime,pteKeplerianEstimatedResults,measuredAcceleration)
+% [tp,DV,Da,DP] = pte2(pteTime,sqrt(sum(inertialMeasurements(:,1:3).^2,2)),...
+%     CartesianEstimatedResults(1:end-1,:)*1e3,pteKeplerianEstimatedResults,sqrt(sum(dependentVariables(1:end-1,4:6).^2,2)))
 
 %%
 

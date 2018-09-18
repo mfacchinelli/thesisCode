@@ -12,8 +12,8 @@ fullDatabase = true;
 if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
-genTable = true;
-showFigures = true;
+genTable = false;
+showFigures = false;
 saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
@@ -222,9 +222,8 @@ knudsenNumberTimeAvg = knudsenNumberFun(molarMassTimeAvg,dataTimeAvg(:,:,:,densL
     collisionDiameterTimeAvg);
 
 %...Verify results
+[lonH,latH,altH] = meshgrid(longitude,latitude,hs);
 if showFigures && ~saveFigures
-    [lonH,latH,altH] = meshgrid(longitude,latitude,hs);
-    
     figure;
     S = slice(lonH,latH,altH,molarMassTimeAvg,[],[],hs(1:2:end));
     plotSettings(S,'',logspace(log10(hs(1)),log10(hs(end)),7),NaN,true,true)
@@ -240,42 +239,61 @@ end
 
 %% Perturbed Atmospheric Density
 
-%...Get independent variables
-lonP = ( lonH - longitude(1) ) / ( longitude(end) - longitude(1) ) * 360;
-latP = ( latH - latitude(1) ) / ( latitude(end) - latitude(1) ) * 360;
-altP = ( altH - altitude(1) ) / ( altitude(end) - altitude(1) ) * 360 * 1000.5;
+clc
 
 %...Get random coefficients
-a = 0.25 * randn(1,6);
-% a = [-0.0523795   0.692141   0.145951   0.373778  -0.921233  -0.283825];
-a = [-0.0402829  -0.224041  -0.486089   0.371841  0.0312022   0.405809];
+generateRandomValues = false;
+x = [1.43602 -0.0523795   0.692141   0.145951   0.373778  -0.921233  -0.283825   0.741148    2.55125   0.474776];
+x = [1.7885    0.072896    0.049453     0.39692    -0.20112     0.17416     0.20877    0.87814     1.1078    0.41708];
+% x = [1.0679    0.18702    -0.048105      0.22215    -0.19121    -0.35057    -0.35559    1.2441    0.91131    0.90197];
+if generateRandomValues
+    a = 0.75 + 1.25 * rand(1);
+    b = 0.25 * randn(1,3);
+    c = 0.25 * randn(1,3);
+    d = ( 1 + 0.5 * randn(1,3) );
+else
+    a = x(1);
+    b = x(2:4);
+    c = x(5:7);
+    d = x(8:10);
+end
+
+%...Get independent variables
+lonP = ( lonH - longitude(1) ) / ( longitude(end) - longitude(1) ) * 360 * d(1);
+latP = ( latH - latitude(1) ) / ( latitude(end) - latitude(1) ) * 360 * d(2);
+altP = ( altH - altitude(1) ) / ( 1500 - altitude(1) ) * 360 * d(3);
 
 %...Compute perturbing term
-perturbations = abs( 1.5 + ...
-    a(1) * cosd(lonP) + a(2) * sind(lonP) + ...
-    a(3) * cosd(latP) + a(4) * sind(latP) + ...
-    a(5) * cosd(altP) + a(6) * sind(altP) );
+perturbations = abs( a + ...
+    b(1) * cosd(lonP) + c(1) * sind(lonP) + ...
+    b(2) * cosd(latP) + c(2) * sind(latP) + ...
+    b(3) * cosd(altP) + c(3) * sind(altP) );
 perturbations( perturbations<0.5 ) = 0.5;
 
-% %...Plot results
-% F = figure('rend','painters','pos',figSizeLarge);
-% for h = 1:length(hs_loc_plot)
-%     subplot(2,3,h)
+format short g, table(a,b,c,d), format long g
+
+%...Plot results
+F = figure('rend','painters','pos',figSizeLarge);
+for h = 1:length(hs_loc_plot)
+    subplot(2,3,h)
 %     S = pcolor(lonH(:,:,1),latH(:,:,1),perturbations(:,:,hs_loc_plot(h)));
-% %     S = pcolor(lonH(:,:,1),latH(:,:,1),perturbations(:,:,hs_loc_plot(h)) .* dataTimeAvg(:,:,hs_loc_plot(h),densLoc));
-%     plotSettings(S,'kg m^{-3}',[],hs_plot(h),false,false)
-% end
-% if ~saveFigures, subplotTitle(['Perturbed Average Density']),
-% else, saveas(F,['../../Report/figures/mars_dens_mean_pert'],'epsc'), end
+    S = pcolor(lonH(:,:,1),latH(:,:,1),perturbations(:,:,hs_loc_plot(h)) .* dataTimeAvg(:,:,hs_loc_plot(h),densLoc));
+%     S = pcolor(lonH(:,:,1),latH(:,:,1),dataTimeAvg(:,:,hs_loc_plot(h),densLoc));
+    plotSettings(S,'kg m^{-3}',[],hs_plot(h),false,false)
+end
+if ~saveFigures, subplotTitle(['Perturbed Average Density']),
+else, saveas(F,['../../Report/figures/mars_dens_mean_pert'],'epsc'), end
 
 figure
-S = slice(lonH,latH,altH,perturbations,[],[],altitude(1:10:end));
+S = slice(lonH,latH,altH,perturbations,[],[],linspace(50,1500,10));
 colormap jet
 set(S,'EdgeColor','none','FaceColor','interp','FaceAlpha','interp')
 alpha('color')
 alphamap('rampdown')
 alphamap('increase',0.25)
-set(gca,'ZScale','log')
+% set(gca,'ZScale','log')
+colorbar
+% view(0,90)
 
 %% Atmospheric Composition
 

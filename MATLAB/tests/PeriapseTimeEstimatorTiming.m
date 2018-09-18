@@ -48,14 +48,15 @@ fclose(fileID);
 %...Load accerations
 filename = fullfile(mainPath,'dependent.dat');
 fileID = fopen(filename,'r');
-accelerationResults = textscan(fileID,repmat('%f',[1,46]),'Delimiter',',','CollectOutput',true);
+accelerationResults = textscan(fileID,repmat('%f',[1,49]),'Delimiter',',','CollectOutput',true);
 accelerationResults = accelerationResults{1}(:,2:end);
 fclose(fileID);
 
 %...Compute supporting variables
 altitude = sqrt(sum(CartesianResults(:,1:3).^2,2)) - marsRadius / 1e3;
 centralGravity = accelerationResults(:,1:3);
-sphericalHarmonics = accelerationResults(:,4:end);
+sphericalHarmonics = accelerationResults(:,4:end-3);
+aerodynamics = accelerationResults(:,end-2:end);
 
 %...Clean up
 clear filename fileID
@@ -112,6 +113,7 @@ yyaxis left
 hold on
 plot(simulationTime,sqrt(sum(centralGravity.^2,2)),'LineWidth',1.25)
 plot(simulationTime,sqrt(sum(sphericalHarmonics.^2,2)),'LineWidth',1.25)
+plot(simulationTime,sqrt(sum(aerodynamics.^2,2)),'LineWidth',1.25)
 hold off
 ylabel('Acceleration [m s^{-2}]')
 set(gca,'YScale','log')
@@ -136,17 +138,18 @@ end
 xlabel(timeLabel)
 set(gca,'FontSize',15)
 if plotTrueAnomaly
-    legend('Central','Spherical Harmonics','Above','Below','Location','Best')
+    legend('Central','Spherical Harmonics','Aerodynamics','Above','Below','Location','Best')
 else
-    L = legend('Central','Spherical Harmonics','Above','Below','Location','NE');
+    L = legend('Central','Spherical Harmonics','Aerodynamics','Above','Below','Location','SW');
 end
 grid on
+xlim([144.84,144.94])
 
 if ~plotTrueAnomaly && saveFigure
     xlim([13,13.8])
     saveas(F,'../../Report/figures/pte_timing_high_ecc','epsc')
     
-    L.Position = [0.15 0.464285714285714 0.298214285714286 0.165476190476191];
+    L.Position = [0.15 0.327976190476191 0.298214285714286 0.165476190476191];
     xlim([144.84,144.94])
     saveas(F,'../../Report/figures/pte_timing_low_ecc','epsc')
 end

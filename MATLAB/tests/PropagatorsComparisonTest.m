@@ -19,7 +19,7 @@ repository = fullfile(TudatApplicationOutput,'Propagators');
 %	3: Circular orbit at LEO (Low Earth Orbit)
 % 	4: Molniya orbit
 %	5: Low-thrust trajectory
-testCase = 1;
+testCase = 0;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;

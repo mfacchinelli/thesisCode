@@ -1,141 +1,171 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
-addpath Kalman
 
-N_red = 301;
+%...Main path
+directory = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/'...
+    'SatellitePropagatorExamples/SimulationOutput/FilterEstimation'];
+
+%% Load Actual State and Noise
+
+%...Actual state
+filename = fullfile(directory,'actualStateHistory.dat');
+fileID = fopen(filename,'r');
+cpp_result = textscan(fileID,'%f %f %f %f','CollectOutput',true,'Delimiter',',');
+actualStateHistory = cpp_result{1}(:,2:end)';
+fclose(fileID);
+
+%...System noise
+filename = fullfile(directory,'systemNoise.dat');
+fileID = fopen(filename,'r');
+cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true);
+systemNoiseHistory = cpp_result{1}';
+fclose(fileID);
+
+%...Measurement noise
+filename = fullfile(directory,'measurementNoise.dat');
+fileID = fopen(filename,'r');
+cpp_result = textscan(fileID,'%f','CollectOutput',true);
+measurementNoiseHistory = cpp_result{1}';
+fclose(fileID);
 
 %% Load C++ EKF Output
 
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/EKFActualStateHistory.dat';
+%...EKF state
+filename = fullfile(directory,'EKFEstimatedStateHistory.dat');
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f %f','CollectOutput',true,'Delimiter',',');
-state_actual_EKF = cpp_result{1}(:,2:end)';
+ekfStateHistory = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/EKFEstimatedStateHistory.dat';
-fileID = fopen(filename,'r');
-cpp_result = textscan(fileID,'%f %f %f %f','CollectOutput',true,'Delimiter',',');
-state_extimated_ekf = cpp_result{1}(:,2:end)';
-fclose(fileID);
-
-filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/'...
-    'SimulationOutput/KFBook/EKFEstimatedCovarianceHistory.dat'];
+%...EKF covariance
+filename = fullfile(directory,'EKFEstimatedCovarianceHistory.dat');
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f %f %f %f %f %f %f %f','CollectOutput',true,'Delimiter',',');
-covariance_extimated_ekf = cpp_result{1}(:,2:end)';
-fclose(fileID);
-
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/systemNoise.dat';
-fileID = fopen(filename,'r');
-cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true);
-system_noise = cpp_result{1}';
-fclose(fileID);
-
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/measurementNoise.dat';
-fileID = fopen(filename,'r');
-cpp_result = textscan(fileID,'%f','CollectOutput',true);
-measurement_noise = cpp_result{1}';
+ekfCovarianceHistory = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
 %% Load C++ UKF Output
 
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/UKFActualStateHistory.dat';
+%...UKF state
+filename = fullfile(directory,'UKFEstimatedStateHistory.dat');
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f %f','CollectOutput',true,'Delimiter',',');
-state_actual_UKF = cpp_result{1}(:,2:end)';
+ukfStateHistory = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KFBook/UKFEstimatedStateHistory.dat';
-fileID = fopen(filename,'r');
-cpp_result = textscan(fileID,'%f %f %f %f','CollectOutput',true,'Delimiter',',');
-state_estimated_ukf = cpp_result{1}(:,2:end)';
-fclose(fileID);
-
-filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/'...
-    'SimulationOutput/KFBook/UKFEstimatedCovarianceHistory.dat'];
+%...UKF covariance
+filename = fullfile(directory,'UKFEstimatedCovarianceHistory.dat');
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f %f %f %f %f %f %f %f','CollectOutput',true,'Delimiter',',');
-covariance_extimated_ukf = cpp_result{1}(:,2:end)';
+ukfCovarianceHistory = cpp_result{1}(:,2:end)';
 fclose(fileID);
 
 %% Plot States
 
-%...Plot both
-figure;
+xAxisValue = cpp_result{1}(:,1);
+
+%...Plot states over time
+F = figure( 'rend', 'painters', 'pos', [ 440, 378, 900, 400 ] );
+
+%...Position
 subplot(1,3,1)
 hold on
-plot(1:N_red,state_extimated_ekf(1,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(1,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_actual_EKF(1,1:N_red),'LineWidth',1.25)
+plot(xAxisValue,ekfStateHistory(1,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(1,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,actualStateHistory(1,:),'LineWidth',1.25,'LineStyle','-.')
 hold off
 grid on
-legend('C++ EKF','C++ UKF','Actual','Location','Best')
-% legend('C++ EKF','Actual','Location','Best')
+xlabel('Time [s]')
+ylabel('Position [ft]')
+legend('EKF','UKF','Actual','Location','Best')
 set(gca,'FontSize',15)
 title('x_1')
 
+%...Velocity
 subplot(1,3,2)
 hold on
-plot(1:N_red,state_extimated_ekf(2,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(2,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_actual_EKF(2,1:N_red),'LineWidth',1.25)
+plot(xAxisValue,ekfStateHistory(2,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(2,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,actualStateHistory(2,:),'LineWidth',1.25,'LineStyle','-.')
 hold off
 grid on
-legend('C++ EKF','C++ UKF','Actual','Location','Best')
-% legend('C++ EKF','Actual','Location','Best')
+xlabel('Time [s]')
+ylabel('Velocity [ft s^{-1}]')
+legend('EKF','UKF','Actual','Location','Best')
 set(gca,'FontSize',15)
 title('x_2')
 
+%...Ballistic coefficient
 subplot(1,3,3)
 hold on
-plot(1:N_red,state_extimated_ekf(3,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(3,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_actual_EKF(3,1:N_red),'LineWidth',1.25)
+plot(xAxisValue,ekfStateHistory(3,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(3,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,actualStateHistory(3,:),'LineWidth',1.25,'LineStyle','-.')
 hold off
 grid on
-legend('C++ EKF','C++ UKF','Actual','Location','Best')
-% legend('C++ EKF','Actual','Location','Best')
+xlabel('Time [s]')
+ylabel('Ballistic Coefficient [lb ft^{-2}]')
+legend('EKF','UKF','Actual','Location','Best')
 set(gca,'FontSize',15)
 title('x_3')
 
-%% Plot State Differences
+%...Save figure
+% saveas( F, '../../Report/figures/kf_state', 'epsc' )
 
-%...Plot both
-figure;
+%% Plot State Errors
+
+%...Plot state errors over time
+F = figure( 'rend', 'painters', 'pos', [ 440, 378, 900, 400 ] );
+
+%...Position
 subplot(1,3,1)
 hold on
-plot(1:N_red,state_extimated_ekf(1,1:N_red)-state_actual_EKF(1,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(1,1:N_red)-state_actual_EKF(1,1:N_red),'LineWidth',1.25)
-plot(1:N_red,sqrt(covariance_extimated_ekf(1,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
-plot(1:N_red,-sqrt(covariance_extimated_ekf(1,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
+plot(xAxisValue,ekfStateHistory(1,:)-actualStateHistory(1,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(1,:)-actualStateHistory(1,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,sqrt(ekfCovarianceHistory(1,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,sqrt(ukfCovarianceHistory(1,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
+plot(xAxisValue,-sqrt(ekfCovarianceHistory(1,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,-sqrt(ukfCovarianceHistory(1,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
 hold off
 grid on
-legend('C++ EKF','C++ UKF','STD','Location','Best')
-% legend('C++ EKF','STD','Location','Best')
+xlabel('Time [s]')
+ylabel('Position Error [ft]')
+legend('EKF','UKF','STD EKF','STD UKF','Location','Best')
 set(gca,'FontSize',15)
 title('x_1')
 
+%...Velocity
 subplot(1,3,2)
 hold on
-plot(1:N_red,state_extimated_ekf(2,1:N_red)-state_actual_EKF(2,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(2,1:N_red)-state_actual_EKF(2,1:N_red),'LineWidth',1.25)
-plot(1:N_red,sqrt(covariance_extimated_ekf(5,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
-plot(1:N_red,-sqrt(covariance_extimated_ekf(5,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
+plot(xAxisValue,ekfStateHistory(2,:)-actualStateHistory(2,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(2,:)-actualStateHistory(2,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,sqrt(ekfCovarianceHistory(5,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,sqrt(ukfCovarianceHistory(5,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
+plot(xAxisValue,-sqrt(ekfCovarianceHistory(5,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,-sqrt(ukfCovarianceHistory(5,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
 hold off
 grid on
-legend('C++ EKF','C++ UKF','STD','Location','Best')
-% legend('C++ EKF','STD','Location','Best')
+xlabel('Time [s]')
+ylabel('Velocity Error [ft s^{-1}]')
+legend('EKF','UKF','STD EKF','STD UKF','Location','Best')
 set(gca,'FontSize',15)
 title('x_2')
 
+%...Ballistic coefficient
 subplot(1,3,3)
 hold on
-plot(1:N_red,state_extimated_ekf(3,1:N_red)-state_actual_EKF(3,1:N_red),'LineWidth',1.25)
-plot(1:N_red,state_estimated_ukf(3,1:N_red)-state_actual_EKF(3,1:N_red),'LineWidth',1.25)
-plot(1:N_red,sqrt(covariance_extimated_ekf(9,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
-plot(1:N_red,-sqrt(covariance_extimated_ekf(9,1:N_red)),'LineWidth',1.25,'Color',[0.929,0.694,0.125])
+plot(xAxisValue,ekfStateHistory(3,:)-actualStateHistory(3,:),'LineWidth',1.25)
+plot(xAxisValue,ukfStateHistory(3,:)-actualStateHistory(3,:),'LineWidth',1.25,'LineStyle','--')
+plot(xAxisValue,sqrt(ekfCovarianceHistory(9,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,sqrt(ukfCovarianceHistory(9,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
+plot(xAxisValue,-sqrt(ekfCovarianceHistory(9,:)),'LineWidth',1.25,'LineStyle','-.','Color',[0.929,0.694,0.125])
+plot(xAxisValue,-sqrt(ukfCovarianceHistory(9,:)),'LineWidth',1.25,'LineStyle',':','Color',[0.494,0.184,0.556])
 hold off
 grid on
-legend('C++ EKF','C++ UKF','STD','Location','Best')
-% legend('C++ EKF','STD','Location','Best')
+xlabel('Time [s]')
+ylabel('Ballistic Coefficient Error [lb ft^{-2}]')
+legend('EKF','UKF','STD EKF','STD UKF','Location','Best')
 set(gca,'FontSize',15)
 title('x_3')
+
+%...Save figure
+% saveas( F, '../../Report/figures/kf_state_diff', 'epsc' )

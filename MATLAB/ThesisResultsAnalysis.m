@@ -10,12 +10,13 @@ saveFigure = false;
 
 %...Constants
 marsRadius = 3389526.666666667;
-marsGravitationalParameter = 4.282e13;
+marsGravitationalParameter = 42828375815756.1;
 marsAtmosphericInterface = 175;
 
 %...Plot settings
 loadMeasurements = false;
-loadFilter = true;
+loadFilter = false;
+applyInterpolation = false;
 
 %...Labels
 timeConversion = 3600 * 24;
@@ -29,13 +30,14 @@ rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]',
 
 %% Load C++ Results For Propagation
 
-outputFolder = 'SimulationOutputTransOnlyIMAN';
+outputFolder = 'SimulationOutputTransOnlyIMANLoop/';
 
 %...Load translational motion
 filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/cartesianPropagated.dat'];
 fileID = fopen(filename,'r');
 CartesianPropagatedResults = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-simulationTime = ( CartesianPropagatedResults{1}(:,1) - CartesianPropagatedResults{1}(1) ) / timeConversion;
+initialTime = CartesianPropagatedResults{1}(1);
+simulationTime = ( CartesianPropagatedResults{1}(:,1) - initialTime ) / timeConversion;
 CartesianPropagatedResults = CartesianPropagatedResults{1}(:,2:end);
 CartesianPropagatedResults(:,1:3) = CartesianPropagatedResults(:,1:3) / 1e3;
 fclose(fileID);
@@ -93,25 +95,6 @@ fclose(fileID);
 %...Clean up
 clear filename fileID
 
-% %...Compute commanded directon cosine matrix
-% omegaVector = zeros(1,3); omegaVector(3) = 7.07763225880808e-05; omegaVector = repmat(omegaVector,length(simulationTime),1);
-% commandedDirectionCosineMatrix = zeros(3,3,length(onboardTime));
-% airspeedVector = CartesianEstimatedResults(:,4:6) - cross( omegaVector, CartesianEstimatedResults(:,1:3) );
-% commandedDirectionCosineMatrix(:,1,:) = ( airspeedVector ./ sqrt( sum( airspeedVector.^2, 2 ) ) )';
-% commandedDirectionCosineMatrix(:,3,:) = ( CartesianEstimatedResults(:,1:3) ./ ...
-%     sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) )';
-% for i = 1:length(onboardTime)
-%     commandedDirectionCosineMatrix(:,3,i) = commandedDirectionCosineMatrix(:,3,i) - ...
-%         dot( commandedDirectionCosineMatrix(:,3,i), commandedDirectionCosineMatrix(:,1,i) ) * ...
-%         commandedDirectionCosineMatrix(:,1,i);
-%     commandedDirectionCosineMatrix(:,2,i) = cross( commandedDirectionCosineMatrix(:,3,i), ...
-%         commandedDirectionCosineMatrix(:,1,i) );
-%     commandedDirectionCosineMatrix(:,:,i) = commandedDirectionCosineMatrix(:,:,i)';
-% end
-% 
-% %...Compute commanded quaternions
-% commandedRotationalState = dcm2quat(commandedDirectionCosineMatrix);
-
 %% Load C++ Results For Navigation Filter
 
 %...Only if filtering is toggled
@@ -120,7 +103,7 @@ if loadFilter
     filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/filterStateEstimates.dat'];
     fileID = fopen(filename,'r');
     filterStateEstimatedResults = textscan(fileID,repmat('%f',[1,13]),'Delimiter',',','CollectOutput',true);
-    filterTime = ( filterStateEstimatedResults{1}(:,1) - filterStateEstimatedResults{1}(1) ) / timeConversion;
+    filterTime = ( filterStateEstimatedResults{1}(:,1) - initialTime ) / timeConversion;
     filterStateEstimatedResults = filterStateEstimatedResults{1}(:,2:end);
     filterStateEstimatedResults(:,1:3) = filterStateEstimatedResults(:,1:3)/1e3;
     fclose(fileID);
@@ -166,7 +149,7 @@ if loadMeasurements
         '/accelerometerMeasurements.dat'];
     fileID = fopen(filename,'r');
     accelerometerMeasurements = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-    measurementTime = ( accelerometerMeasurements{1}(:,1) - accelerometerMeasurements{1}(1) ) / timeConversion;
+    measurementTime = ( accelerometerMeasurements{1}(:,1) - initialTime ) / timeConversion;
     accelerometerMeasurements = accelerometerMeasurements{1}(:,2:end);
     fclose(fileID);
     
@@ -181,20 +164,40 @@ if loadMeasurements
     clear filename fileID
 end
 
+%% Interpolate Results to Match Times
+
+%...Set interpolation time
+interpolatedTime = simulationTime;%(simulationTime<1.4699);
+
+%...Interpolate
+if applyInterpolation
+    %...Interpolate propagation results
+    CartesianPropagatedResults = interp1( simulationTime, CartesianPropagatedResults, interpolatedTime, 'spline' );
+    KeplerianPropagatedResults = interp1( simulationTime, KeplerianPropagatedResults, interpolatedTime, 'spline' );
+    
+    %...Interpolate estimation results
+    CartesianEstimatedResults = interp1( onboardTime, CartesianEstimatedResults, interpolatedTime, 'spline' );
+    KeplerianEstimatedResults = interp1( onboardTime, KeplerianEstimatedResults, interpolatedTime, 'spline' );
+    
+    %..Interpolate filter results
+    if loadFilter
+        filterStateEstimatedResults = interp1( filterTime, filterStateEstimatedResults, interpolatedTime, 'linear', NaN );
+        filterCovarianceEstimatedResults = interp1( filterTime, filterCovarianceEstimatedResults, interpolatedTime, 'linear', NaN );
+    end
+    
+    %...Interpolate other results
+    dependentVariables = interp1( simulationTime, dependentVariables, interpolatedTime, 'spline' );
+    if loadMeasurements
+        accelerometerMeasurements = interp1( measurementTime, accelerometerMeasurements, interpolatedTime, 'spline' );
+        expectedMeasurements = interp1( measurementTime, expectedMeasurements, interpolatedTime, 'spline' );
+    end
+end
+
 %% Plot 3D Orbit
 
 %...Plot trajectory
 F = figure('rend','painters','pos',figSizeLarge);
 hold on
-% quiver3(CartesianPropagatedResults(1,1),CartesianPropagatedResults(1,2),CartesianPropagatedResults(1,3),...
-%     commandedDirectionCosineMatrix(1,1,1),commandedDirectionCosineMatrix(1,2,1),commandedDirectionCosineMatrix(1,3,1),...
-%     'AutoScaleFactor',1e4,'LineWidth',1)
-% quiver3(CartesianPropagatedResults(1,1),CartesianPropagatedResults(1,2),CartesianPropagatedResults(1,3),...
-%     commandedDirectionCosineMatrix(2,1,1),commandedDirectionCosineMatrix(2,2,1),commandedDirectionCosineMatrix(2,3,1),...
-%     'AutoScaleFactor',1e4,'LineWidth',1)
-% quiver3(CartesianPropagatedResults(1,1),CartesianPropagatedResults(1,2),CartesianPropagatedResults(1,3),...
-%     commandedDirectionCosineMatrix(3,1,1),commandedDirectionCosineMatrix(3,2,1),commandedDirectionCosineMatrix(3,3,1),...
-%     'AutoScaleFactor',1e4,'LineWidth',1)
 plot3(CartesianPropagatedResults(:,1),CartesianPropagatedResults(:,2),CartesianPropagatedResults(:,3),'LineWidth',1.5)
 plot3(CartesianEstimatedResults(:,1),CartesianEstimatedResults(:,2),CartesianEstimatedResults(:,3),'LineWidth',1.5)
 [x,y,z] = sphere; surf(marsRadius/1e3*x,marsRadius/1e3*y,marsRadius/1e3*z)
@@ -213,18 +216,21 @@ actualPeriapses = -findpeaks(-actualAltitude);
 
 estimatedAltitude = sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) - marsRadius/1e3;
 estimatedApoapses = findpeaks(estimatedAltitude);
-estimatedPeriapses = -findpeaks(-estimatedAltitude);
+[estimatedPeriapses,periapsisLocations] = findpeaks(-estimatedAltitude);
+estimatedPeriapses = -estimatedPeriapses;
+
+maximumDensityPerOrbit = findpeaks(dependentVariables(:,10),'MinPeakHeight',1.0e-13);
 
 %...Plot altitude
 F = figure('rend','painters','pos',figSizeSmall);
 yyaxis left
 hold on
-plot(simulationTime,actualAltitude,'LineWidth',1.25)
-plot(onboardTime,estimatedAltitude,'LineWidth',1.25)
+plot(interpolatedTime,actualAltitude,'LineWidth',1.25)
+plot(interpolatedTime,estimatedAltitude,'LineWidth',1.25)
 hold off
 ylabel('Altitude [km]')
 yyaxis right
-semilogy(onboardTime,abs(estimatedAltitude-actualAltitude)*1e3,'LineWidth',1.25)
+semilogy(interpolatedTime,abs(estimatedAltitude-actualAltitude)*1e3,'LineWidth',1.25)
 xlabel(timeLabel)
 ylabel('Altitude Difference [m]')
 legend('Actual','Estimated','Location','Best')
@@ -233,16 +239,32 @@ grid on
 
 %...Plot periapses
 F = figure('rend','painters','pos',figSizeSmall);
+yyaxis left
 hold on
-scatter(1:length(actualPeriapses),actualPeriapses,'filled')
-scatter(1:length(estimatedPeriapses),estimatedPeriapses,'filled')
+scatter(1:length(actualPeriapses),actualPeriapses,'filled','s')
+scatter(1:length(estimatedPeriapses),estimatedPeriapses,'filled','d')
 % scatter(1:length(targetedPeriapses),targetedPeriapses,'filled')
-hold off
-xlabel('Orbit Number [-]')
 ylabel('Altitude [km]')
-legend('Actual Periapses','Estimated Periapses')%,'Commanded Periapses')
+hold off
+yyaxis right
+scatter(1:length(maximumDensityPerOrbit),maximumDensityPerOrbit,'filled','v')
+ylabel('Density [kg m^{-3}]')
+set(gca,'YScale','log')
+xlabel('Orbit Number [-]')
+legend('Actual Periapses','Estimated Periapses','Density')%,'Commanded Periapses')
 set(gca,'FontSize',15);
 grid on
+
+%% RMS Error
+
+%...Compute RMS error in position and velocity
+rmsPositionError = rms( sqrt(sum(CartesianEstimatedResults(:,1:3).^2,2)) - ...
+    sqrt(sum(CartesianPropagatedResults(:,1:3).^2,2)) ) * 1e3;
+rmsVelocityError = rms( sqrt(sum(CartesianEstimatedResults(:,4:6).^2,2)) - ...
+    sqrt(sum(CartesianPropagatedResults(:,4:6).^2,2)) ) * 1e3;
+
+%...Show errors
+table(rmsPositionError,rmsVelocityError)
 
 %% Plot States Over Time
 
@@ -251,8 +273,8 @@ F = figure('rend','painters','pos',figSizeLarge);
 for i = 1:size(CartesianPropagatedResults,2)
     subplot(2,3,i)
     hold on
-    plot(simulationTime,CartesianPropagatedResults(:,i),'LineWidth',1.25)
-    plot(onboardTime,CartesianEstimatedResults(:,i),'LineWidth',1.25)
+    plot(interpolatedTime,CartesianPropagatedResults(:,i),'LineWidth',1.25)
+    plot(interpolatedTime,CartesianEstimatedResults(:,i),'LineWidth',1.25)
     hold off
     xlabel(timeLabel)
     ylabel(CartesianLabels{i})
@@ -265,11 +287,10 @@ subplotLegend({'Actual','Estimated'})
 F = figure('rend','painters','pos',figSizeLarge);
 for i = 1:size(CartesianPropagatedResults,2)
     subplot(2,3,i)
-    hold on
-    plot(simulationTime,CartesianEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
-    hold off
+    plot(interpolatedTime,CartesianEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
     xlabel(timeLabel)
-    ylabel(CartesianLabelsDifference{i})
+    ylabel(CartesianLabelsDifference{i},'LineWidth',1.25)
+           hold off
     set(gca,'FontSize',15)
     grid on
 end
@@ -279,8 +300,8 @@ F = figure('rend','painters','pos',figSizeLarge);
 for i = 1:size(KeplerianPropagatedResults,2)
     subplot(2,3,i)
     hold on
-    plot(simulationTime,KeplerianPropagatedResults(:,i),'LineWidth',1.25)
-    plot(onboardTime,KeplerianEstimatedResults(:,i),'LineWidth',1.25)
+    plot(interpolatedTime,KeplerianPropagatedResults(:,i),'LineWidth',1.25)
+    plot(interpolatedTime,KeplerianEstimatedResults(:,i),'LineWidth',1.25)
     hold off
     xlabel(timeLabel)
     ylabel(KeplerianLabels{i})
@@ -294,8 +315,8 @@ subplotLegend({'Actual','Estimated'})
 % for i = size(rotationalPropagatedResults,2):-1:1
 %     subplot(2,4,i)
 %     hold on
-%     plot(simulationTime,rotationalPropagatedResults(:,i),'LineWidth',1.25)
-%     plot(onboardTime,rotationalEstimatedResults(:,i),'LineWidth',1.25)
+%     plot(interpolatedTime,rotationalPropagatedResults(:,i),'LineWidth',1.25)
+%     plot(interpolatedTime,rotationalEstimatedResults(:,i),'LineWidth',1.25)
 %     if i <= 4
 %         plot(onboardTime,commandedRotationalState(:,i),'LineWidth',1.25)
 %     end
@@ -316,9 +337,9 @@ if loadFilter
     for i = 1:6
         subplot(2,3,i)
         hold on
-        plot(filterTime,filterStateEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
-        plot(filterTime,sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
-        plot(filterTime,-sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(interpolatedTime(2:end),filterStateEstimatedResults(2:end,i)-CartesianPropagatedResults(2:end,i),'LineWidth',1.25)
+        plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         hold off
         xlabel(timeLabel)
         set(gca,'FontSize',15)
@@ -326,13 +347,14 @@ if loadFilter
     end
     
     %...Plot instrument errors
+    actual = [-0.000123974  5.23187e-06   9.7221e-06 -4.07472e-05 -0.000166043  -8.9237e-05];
     F = figure('rend','painters','pos',figSizeLarge);
     for i = 7:12
         subplot(2,3,i-6)
         hold on
-        plot(filterTime,filterStateEstimatedResults(:,i),'LineWidth',1.25)
-        plot(filterTime,sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
-        plot(filterTime,-sqrt(filterCovarianceEstimatedResults(:,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(interpolatedTime(2:end),filterStateEstimatedResults(2:end,i)-actual(i-6),'LineWidth',1.25)
+        plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
+        plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         hold off
         xlabel(timeLabel)
         set(gca,'FontSize',15)
@@ -350,10 +372,10 @@ if loadMeasurements
     subplot(1,2,1)
     hold on
     for i = 1:3
-        plot(measurementTime,accelerometerMeasurements(:,i),'LineWidth',1.0)
-        plot(simulationTime,smooth(dependentVariables(:,i+3),25),'LineWidth',1.25)
-        plot(onboardTime,expectedMeasurements(:,i),'LineWidth',1.25,'LineStyle','--')
-        plot(simulationTime,dependentVariables(:,i+3),'LineWidth',1.25,'LineStyle',':')
+        plot(interpolatedTime,accelerometerMeasurements(:,i),'LineWidth',1.0)
+        plot(interpolatedTime,smooth(accelerometerMeasurements(:,i),25),'LineWidth',1.25)
+        plot(interpolatedTime,expectedMeasurements(:,i),'LineWidth',1.25,'LineStyle','--')
+        plot(interpolatedTime,dependentVariables(:,i+3),'LineWidth',1.25,'LineStyle',':')
     end
     hold off
     xlabel(timeLabel)
@@ -366,7 +388,7 @@ if loadMeasurements
     % legend('x_{IMU}','x_{real}','y_{IMU}','y_{real}','z_{IMU}','z_{real}')
     
     subplot(1,2,2)
-    plot(measurementTime,accelerometerMeasurements(:,4:6),'LineWidth',1.25)
+    plot(interpolatedTime,accelerometerMeasurements(:,4:6),'LineWidth',1.25)
     hold off
     xlabel(timeLabel)
     ylabel('Rotational Velocity [rad s^{-1}]')
@@ -386,29 +408,47 @@ end
 
 %...Plot aerodynamic angles
 figure;
-plot(simulationTime,dependentVariables(:,7:9),'LineWidth',1.25)
+plot(interpolatedTime,dependentVariables(:,7:9),'LineWidth',1.25)
 xlabel(timeLabel)
 ylabel('Angle [deg]')
 set(gca,'FontSize',15)
 grid on
 legend('Attack','Side-slip','Bank','Location','Best')
 
+% %...Plot aerodynamic acceleration
+% figure;
+% ax = polaraxes;
+% polarplot(deg2rad(KeplerianPropagatedResults(:,6)),dependentVariables(:,10),'LineWidth',1.25)
+% grid on
+% ax.RAxis.Label.String = 'Aerodynamic Acceleration [m s^{-2}]';
+% ax.ThetaAxis.Label.String = 'True Anomaly [deg]';
+% set(gca,'FontSize',15)
+% 
+% figure;
+% plot(KeplerianPropagatedResults(:,6),dependentVariables(:,10),'LineWidth',1.25)
+% grid on
+% xlabel('True Anomaly [deg]')
+% ylabel('Aerodynamic Acceleration [m s^{-2}]')
+% set(gca,'FontSize',15)
+
 %...Plot heating conditions
 figure;
 yyaxis left
 hold on
-plot(simulationTime,dependentVariables(:,11),'LineWidth',1.25)
-plot([simulationTime(1),simulationTime(end)],[0.19,0.19],'LineWidth',1.25,'LineStyle','--')
+plot(interpolatedTime,dependentVariables(:,11),'LineWidth',1.25)
+plot([interpolatedTime(1),interpolatedTime(end)],[0.19,0.19],'LineWidth',1.25,'LineStyle','--')
 set(gca,'YScale','log')
 hold off
 ylabel('Dynamic Pressure [kg m^{-2}]')
+ylims = ylim; ylim([1e-6,ylims(2)]);
 yyaxis right
 hold on
-plot(simulationTime,dependentVariables(:,12),'LineWidth',1.25)
-plot([simulationTime(1),simulationTime(end)],[2800,2800],'LineWidth',1.25,'LineStyle','--')
+plot(interpolatedTime,dependentVariables(:,12),'LineWidth',1.25)
+plot([interpolatedTime(1),interpolatedTime(end)],[2800,2800],'LineWidth',1.25,'LineStyle','--')
 set(gca,'YScale','log')
 hold off
 ylabel('Heat Rate [W m^{-2}]')
+ylims = ylim; ylim([1e-2,ylims(2)]);
 xlabel(timeLabel)
 set(gca,'FontSize',15)
 grid on
@@ -445,3 +485,27 @@ if loadMeasurements
     grid on
     % legend('Measured','Actual','Location','Best')
 end
+
+%%
+
+x = [133653 1.75013e-09     5652.26   -0.626817   0.0248434   0.0492727];
+x = [138087 7.85814e-10     3945.28   -0.585279  0.00602754  0.00572154];
+x = [137946 9.55613e-10     1910.18   -0.207692    0.007515  0.00841763];
+dens_func = @(h) x(2) * exp( x(4) * ( h*1e3 - x(1) ) / x(3) + x(5) * cos( 2*pi*( ( h*1e3 - x(1) ) / x(3) ) ) + ...
+    x(6) * sin( 2*pi*( ( h*1e3 - x(1) ) / x(3) ) ) );
+
+figure
+hold on
+% plot(dens_func(125:1000),125:1000,'LineWidth',1.25)
+plot(dependentVariables(:,10),actualAltitude,'LineWidth',1.25)
+plot(dens_func(actualAltitude),actualAltitude,'LineWidth',1.25)
+hold off
+xlabel('Density [kg m^{-3}]')
+ylabel('Altitude [km]')
+ylim([125,175])
+grid on
+set(gca,'FontSize',15,'XScale','log')
+
+%% Clean Up
+
+if ~showFigure, close all, end

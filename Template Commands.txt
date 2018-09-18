@@ -3,21 +3,22 @@
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_quaternionTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest -j 8
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_propagatorsComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison -j 8
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_propagatorsComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_Thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_Thesis
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnly; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMAN; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMANLoop; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANLoop
 
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_FilterEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/bin/applications; time ./application_FilterEstimation
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_PropagatorTypesComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/bin/applications; time ./application_PropagatorTypesComparison
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_marsTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_marsTest
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_spartaTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_spartaTest
 
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_BiasEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_BiasEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat;
-
-cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_LinearAlgebra; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_LinearAlgebra
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_RungeKuttaVariableStepSizeIntegrator; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_RungeKuttaVariableStepSizeIntegrator
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 test_JsonInterfaceIntegrator; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; time ./test_JsonInterfaceIntegrator
 
 ##########################################################################################
 ### Run on Server

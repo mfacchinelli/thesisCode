@@ -1,12 +1,12 @@
-function [tp,DV,Da,DP] = PTE(time,kepl,aero)
+function [tp,dtheta,DV,Da,DP] = PTE(time,kepl,aero)
 
 %...Constants
-mu = 4.282e13;          % Mars gravitational parameter
+mu = 42828375815756.1;	% Mars gravitational parameter
 Rm = 3389526.666666667;	% Mars radius
-atm_int = 175e3;        % atmospheric interface altitude
+atm_int = 200e3;        % atmospheric interface altitude
 
 %...Reduce data
-h = kepl(:,1) .* ( 1 - kepl(:,2).^2 ) ./ ( 1 + kepl(:,2) .* cosd( kepl(:,6) ) ) - Rm;
+h = kepl(:,1) .* ( 1 - kepl(:,2).^2 ) ./ ( 1 + kepl(:,2) .* cos( kepl(:,6) ) ) - Rm;
 loc = h < atm_int;
 time = time(loc);
 aero = aero(loc);
@@ -26,6 +26,7 @@ b0 = find(max(aero)==aero)+100;
 %...Iterative method
 c = areaBisection(time,aero,a0,b0);
 tp = time(c);
+dtheta = rad2deg(kepl(c,6));
 
 %...Finish plotting
 plot([time(c),time(c)],ylim,'LineWidth',2,'LineStyle',':')
@@ -34,6 +35,7 @@ xlabel('Time [min]')
 ylabel('Acceleration Norm [m/s^2]')
 legend('IMU','Barycenter')
 grid on
+set(gca,'FontSize',15)
 
 %% Period Change
 
