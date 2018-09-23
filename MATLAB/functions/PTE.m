@@ -40,7 +40,8 @@ set(gca,'FontSize',15)
 %% Period Change
 
 %...Find Delta V
-DV = -trapz(time,aero); % time is in minutes
+kappa = 0.955;
+DV = -kappa * trapz(time,aero); % time is in minutes
 
 %...Find Delta a
 a0 = kepl(1,1); n0 = sqrt(mu/a0^3);
@@ -48,5 +49,4 @@ e0 = kepl(1,2);
 Da = 2/n0*sqrt((1+e0)/(1-e0))*DV;
 
 %...Find Delta Period
-kappa = 1;%0.955;
-DP = 2*pi*kappa*((a0+Da)^(3/2)-a0^(3/2))/sqrt(mu);
+DP = 2*pi*((a0+Da)^(3/2)-a0^(3/2))/sqrt(mu);

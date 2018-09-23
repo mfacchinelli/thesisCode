@@ -7,7 +7,7 @@ addpath data other Kalman
 
 %% Access Data
 
-filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFMeasurementHistory.dat';
+filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/measurementHistory.dat';
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f','CollectOutput',true,'Delimiter',',');
 z_k = cpp_result{1}(:,2:end)';

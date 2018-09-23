@@ -30,7 +30,8 @@ rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]',
 
 %% Load C++ Results For Propagation
 
-outputFolder = 'SimulationOutputTransOnlyIMANLoop/';
+outputFolder = 'SimulationOutputTransOnlyIMAN/';
+% outputFolder = 'SimulationOutputTransOnlyAltimeter/';
 
 %...Load translational motion
 filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/cartesianPropagated.dat'];
@@ -167,7 +168,7 @@ end
 %% Interpolate Results to Match Times
 
 %...Set interpolation time
-interpolatedTime = simulationTime;%(simulationTime<1.4699);
+interpolatedTime = simulationTime;
 
 %...Interpolate
 if applyInterpolation
@@ -182,11 +183,12 @@ if applyInterpolation
     %..Interpolate filter results
     if loadFilter
         filterStateEstimatedResults = interp1( filterTime, filterStateEstimatedResults, interpolatedTime, 'linear', NaN );
-        filterCovarianceEstimatedResults = interp1( filterTime, filterCovarianceEstimatedResults, interpolatedTime, 'linear', NaN );
+        filterCovarianceEstimatedResults = interp1( filterTime, filterCovarianceEstimatedResults, ...
+            interpolatedTime, 'linear', NaN );
     end
     
     %...Interpolate other results
-    dependentVariables = interp1( simulationTime, dependentVariables, interpolatedTime, 'spline' );
+%     dependentVariables = interp1( simulationTime, dependentVariables, interpolatedTime, 'spline' );
     if loadMeasurements
         accelerometerMeasurements = interp1( measurementTime, accelerometerMeasurements, interpolatedTime, 'spline' );
         expectedMeasurements = interp1( measurementTime, expectedMeasurements, interpolatedTime, 'spline' );
@@ -261,7 +263,7 @@ grid on
 rmsPositionError = rms( sqrt(sum(CartesianEstimatedResults(:,1:3).^2,2)) - ...
     sqrt(sum(CartesianPropagatedResults(:,1:3).^2,2)) ) * 1e3;
 rmsVelocityError = rms( sqrt(sum(CartesianEstimatedResults(:,4:6).^2,2)) - ...
-    sqrt(sum(CartesianPropagatedResults(:,4:6).^2,2)) ) * 1e3;
+    sqrt(sum(CartesianPropagatedResults(:,4:6).^2,2)) );
 
 %...Show errors
 table(rmsPositionError,rmsVelocityError)
@@ -290,7 +292,6 @@ for i = 1:size(CartesianPropagatedResults,2)
     plot(interpolatedTime,CartesianEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
     xlabel(timeLabel)
     ylabel(CartesianLabelsDifference{i},'LineWidth',1.25)
-           hold off
     set(gca,'FontSize',15)
     grid on
 end
@@ -309,6 +310,17 @@ for i = 1:size(KeplerianPropagatedResults,2)
     grid on
 end
 subplotLegend({'Actual','Estimated'})
+
+%...Plot error in Keplerian translational motion
+F = figure('rend','painters','pos',figSizeLarge);
+for i = 1:size(KeplerianPropagatedResults,2)
+    subplot(2,3,i)
+    plot(interpolatedTime,KeplerianEstimatedResults(:,i)-KeplerianPropagatedResults(:,i),'LineWidth',1.25)
+    xlabel(timeLabel)
+    ylabel(KeplerianLabels{i})
+    set(gca,'FontSize',15)
+    grid on
+end
 
 % %...Plot rotational motion
 % F = figure('rend','painters','pos',figSizeLarge);
@@ -337,7 +349,7 @@ if loadFilter
     for i = 1:6
         subplot(2,3,i)
         hold on
-        plot(interpolatedTime(2:end),filterStateEstimatedResults(2:end,i)-CartesianPropagatedResults(2:end,i),'LineWidth',1.25)
+        plot(interpolatedTime,filterStateEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
         plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         hold off
@@ -352,7 +364,7 @@ if loadFilter
     for i = 7:12
         subplot(2,3,i-6)
         hold on
-        plot(interpolatedTime(2:end),filterStateEstimatedResults(2:end,i)-actual(i-6),'LineWidth',1.25)
+        plot(interpolatedTime,filterStateEstimatedResults(:,i)-actual(i-6),'LineWidth',1.25)
         plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
         hold off
@@ -491,6 +503,7 @@ end
 x = [133653 1.75013e-09     5652.26   -0.626817   0.0248434   0.0492727];
 x = [138087 7.85814e-10     3945.28   -0.585279  0.00602754  0.00572154];
 x = [137946 9.55613e-10     1910.18   -0.207692    0.007515  0.00841763];
+x = [137350 7.59367e-10      1860.1    -0.27187  0.00221564   0.0042782];
 dens_func = @(h) x(2) * exp( x(4) * ( h*1e3 - x(1) ) / x(3) + x(5) * cos( 2*pi*( ( h*1e3 - x(1) ) / x(3) ) ) + ...
     x(6) * sin( 2*pi*( ( h*1e3 - x(1) ) / x(3) ) ) );
 

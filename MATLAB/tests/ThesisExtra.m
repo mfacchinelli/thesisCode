@@ -5,35 +5,68 @@ addpath functions
 
 number = 3;
 
-%...Retrieve altitude
-filename = ['/Users/Michele/Desktop/altitude',num2str(number),'.dat'];
-fileID = fopen(filename,'r');
-estimatedAltitude = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
-estimatedAltitude = estimatedAltitude{1}/1e3;
-estimatedAltitude = estimatedAltitude(1:10:end);
-fclose(fileID);
+%...Constants
+marsRadius = 3389526.666666667;
+marsGravitationalParameter = 42828375815756.1;
+marsReducedAtmosphericInterface = 150;
 
 %...Retrieve altitude
-filename = ['/Users/Michele/Desktop/acceleration',num2str(number),'.dat'];
+filename = ['/Users/Michele/Desktop/Results/altitude',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+estimatedAltitude = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+estimatedAltitude = estimatedAltitude{1}(1:10:end)/1e3;
+fclose(fileID);
+
+%...Retrieve acceleration
+filename = ['/Users/Michele/Desktop/Results/acceleration',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 measuredAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 measuredAcceleration = measuredAcceleration{1}(1:10:end);
 fclose(fileID);
 
-%...Retrieve altitude
-filename = ['/Users/Michele/Desktop/density',num2str(number),'.dat'];
+%...Retrieve density
+filename = ['/Users/Michele/Desktop/Results/density',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 estimatedDensity = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 estimatedDensity = estimatedDensity{1}(1:10:end);
 fclose(fileID);
 
 %...Retrieve Keplerian elements
-filename = ['/Users/Michele/Desktop/kepler_',num2str(number),'.dat'];
+filename = ['/Users/Michele/Desktop/Results/kepler_',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
 pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
-pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end); 
+pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end);
 fclose(fileID);
+
+%...Retrieve acceleration
+filename = ['/Users/Michele/Desktop/Results/aero_',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+pteAcceleration = pteAcceleration{1}(1:10:end);
+fclose(fileID);
+
+%% Run PTE
+
+clc
+
+%...Run Periapse Time Estimator function
+[tp,dtheta,DV,Da] = PTE(pteTime,pteKeplerianEstimatedResults,pteAcceleration)
+%%
+keplerAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
+    ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6) ) ) - marsRadius;
+keplerAltitude = keplerAltitude(keplerAltitude<150e3)/1e3;
+
+correctedAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
+    ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6)+deg2rad(dtheta) ) ) - marsRadius;
+correctedAltitude = correctedAltitude(correctedAltitude<150e3)/1e3;
+
+figure
+hold on
+plot(keplerAltitude)
+plot(correctedAltitude)
+plot(estimatedAltitude)
+hold off
 
 %% Fit Atmospheric Data
 
@@ -121,8 +154,8 @@ for i = 1:10
     end
 %     [lambda,rho,dx']
 end
-x = [2.11909e-09      2970.89    -0.428217 -0.000739212   3.3584e-05];
-x(1) = log(x(1)); x(2) = 1/x(2);
+% x = [2.11909e-09      2970.89    -0.428217 -0.000739212   3.3584e-05];
+% x(1) = log(x(1)); x(2) = 1/x(2);
 
 newDensityFunction = @(h) exp(x(1)) * exp( x(3) * h * x(2) + x(4) * cos( 2*pi*h*x(2) ) + ...
     x(5) * sin( 2*pi*h*x(2) ) );
@@ -155,14 +188,6 @@ hold off
 set(gca,'FontSize',15,'XScale','log')
 grid on
 legend('Measured','Own','MATLAB')
-
-%% Run PTE
-
-clc
-
-[tp,dtheta,DV,Da,DP] = PTE(pteTime,pteKeplerianEstimatedResults,measuredAcceleration)
-% [tp,DV,Da,DP] = pte2(pteTime,sqrt(sum(inertialMeasurements(:,1:3).^2,2)),...
-%     CartesianEstimatedResults(1:end-1,:)*1e3,pteKeplerianEstimatedResults,sqrt(sum(dependentVariables(1:end-1,4:6).^2,2)))
 
 %%
 
