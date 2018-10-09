@@ -19,7 +19,7 @@ repository = fullfile(TudatApplicationOutput,'Propagators');
 %	3: Circular orbit at LEO (Low Earth Orbit)
 % 	4: Molniya orbit
 %	5: Low-thrust trajectory
-testCase = 0;
+testCase = 1;
 switch testCase
     case 0 % aerocapture
         R = 3.396e3;
@@ -473,3 +473,28 @@ if saveFigure, saveas(F,['../../Report/figures/rms_const_time_',num2str(testCase
 %% Close All Figures
 
 if saveFigure, close all, end
+
+%% Plot Aerobraking Evolution
+
+if testCase == 1 && saveFigure
+    %...Determine change in apoapsis altitude drop rate
+    altitudes = sqrt(sum(reference.cartesianOut(:,1:3).^2,2)) - R;
+    [apoapsesAltitudes,apoapsesLocs] = findpeaks(altitudes);
+    apoapsesAltitudes = [altitudes(1);apoapsesAltitudes];
+    apoapsesTimes = [0;reference.timeOut(apoapsesLocs)];
+    apoapsesPercentDiff = diff(apoapsesAltitudes)./apoapsesAltitudes(1:end-1) * 100;
+
+    %...Plot results
+    F = figure('rend','painters','pos',figSizeSmall);
+    yyaxis left
+    plot(reference.timeOut,reference.keplerOut(:,2),'LineWidth',1.25)
+    ylabel(keplerLabels{2})
+    yyaxis right
+    scatter(apoapsesTimes(2:end),apoapsesPercentDiff,50)
+    ylabel('Apoapsis Altitude Change [%]')
+    xlabel(timeLabel)
+    grid on
+    legend('Eccentricity','Apoapsis Altitude Change','Location','SW')
+    set(gca,'FontSize',15)
+    saveas(F,'../../Report/figures/aerobrake_uncont_evol','epsc')
+end

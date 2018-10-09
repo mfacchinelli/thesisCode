@@ -1,14 +1,14 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
 addpath functions
 
-%% Read Data
-
-number = 3;
-
 %...Constants
 marsRadius = 3389526.666666667;
 marsGravitationalParameter = 42828375815756.1;
 marsReducedAtmosphericInterface = 150;
+
+%% Read Data
+
+number = 1;
 
 %...Retrieve altitude
 filename = ['/Users/Michele/Desktop/Results/altitude',num2str(number),'.dat'];
@@ -31,42 +31,42 @@ estimatedDensity = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 estimatedDensity = estimatedDensity{1}(1:10:end);
 fclose(fileID);
 
-%...Retrieve Keplerian elements
-filename = ['/Users/Michele/Desktop/Results/kepler_',num2str(number),'.dat'];
-fileID = fopen(filename,'r');
-orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
-pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
-pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end);
-fclose(fileID);
-
-%...Retrieve acceleration
-filename = ['/Users/Michele/Desktop/Results/aero_',num2str(number),'.dat'];
-fileID = fopen(filename,'r');
-pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
-pteAcceleration = pteAcceleration{1}(1:10:end);
-fclose(fileID);
+% %...Retrieve Keplerian elements
+% filename = ['/Users/Michele/Desktop/Results/kepler_',num2str(number),'.dat'];
+% fileID = fopen(filename,'r');
+% orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
+% pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
+% pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end);
+% fclose(fileID);
+% 
+% %...Retrieve acceleration
+% filename = ['/Users/Michele/Desktop/Results/aero_',num2str(number),'.dat'];
+% fileID = fopen(filename,'r');
+% pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+% pteAcceleration = pteAcceleration{1}(1:10:end);
+% fclose(fileID);
 
 %% Run PTE
 
 clc
 
 %...Run Periapse Time Estimator function
-[tp,dtheta,DV,Da] = PTE(pteTime,pteKeplerianEstimatedResults,pteAcceleration)
-%%
-keplerAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
-    ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6) ) ) - marsRadius;
-keplerAltitude = keplerAltitude(keplerAltitude<150e3)/1e3;
+[tp,dtheta,DV,Da,De] = PTE(pteTime,pteKeplerianEstimatedResults,pteAcceleration)
 
-correctedAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
-    ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6)+deg2rad(dtheta) ) ) - marsRadius;
-correctedAltitude = correctedAltitude(correctedAltitude<150e3)/1e3;
-
-figure
-hold on
-plot(keplerAltitude)
-plot(correctedAltitude)
-plot(estimatedAltitude)
-hold off
+% keplerAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
+%     ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6) ) ) - marsRadius;
+% keplerAltitude = keplerAltitude(keplerAltitude<150e3)/1e3;
+% 
+% correctedAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
+%     ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6)+deg2rad(dtheta) ) ) - marsRadius;
+% correctedAltitude = correctedAltitude(correctedAltitude<150e3)/1e3;
+% 
+% figure
+% hold on
+% plot(keplerAltitude)
+% plot(correctedAltitude)
+    % plot(estimatedAltitude)
+% hold off
 
 %% Fit Atmospheric Data
 
@@ -117,7 +117,7 @@ legend('Measured','Own','MATLAB')%,'Reference')
 
 %% Fit Other Model
 
-clc
+% clc
 
 %...Initial values
 x = [log( 2.424e-08 ), 1.0 / 6533.0, -1.0, 0.0, 0.0]';
@@ -176,18 +176,25 @@ table( [ 2.42386294453635e-08; exp( updatedEstimate(1) ); exp( x(1) ); exp( lsq.
     [ - 1; NaN; x(3); lsq.K1 ],...
     [ 0; NaN; x(4); lsq.K2 ],...
     [ 0; NaN; x(5); lsq.K3 ],...
-    'VariableNames', {'DensityAtReferenceAltitude', 'ScaleHeight','Kappa1','Kappa2','Kappa3'} )
+    'VariableNames',{'DensityAtReferenceAltitude','ScaleHeight','Kappa1','Kappa2','Kappa3'} )
+
+%...C++ results
+cppFit = [132831 2.37122e-09     3991.26   -0.478632   0.0050322  0.00490655];
+cppDensityFunction = @(h) cppFit(2) * exp( cppFit(4) * ( h*1e3 - cppFit(1) ) / cppFit(3) + ...
+    cppFit(5) * cos( 2*pi*( ( h*1e3 - cppFit(1) ) / cppFit(3) ) ) + ...
+    cppFit(6) * sin( 2*pi*( ( h*1e3 - cppFit(1) ) / cppFit(3) ) ) );
 
 %...Plot result
 figure
 hold on
-scatter( atmosphericDensity, altitude(1:end) )
+scatter( atmosphericDensity, altitude )
 plot( newDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle','--')
-plot( matlabDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle','-.')
+plot( cppDensityFunction( altitude ), altitude, 'LineWidth',1.25,'LineStyle','-.')
+plot( matlabDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle',':')
 hold off
 set(gca,'FontSize',15,'XScale','log')
 grid on
-legend('Measured','Own','MATLAB')
+legend('Measured','Own','C++','MATLAB')
 
 %%
 
@@ -196,7 +203,7 @@ R = 3.39e3;
 
 ra = 40000e3 + R;
 
-lowRp = 75e3 + R;
+lowRp = 100e3 + R;
 highRp = 175e3 + R;
 dtheta = deg2rad(0.1);
 
@@ -303,7 +310,7 @@ time(end)
 
 %% Altimeter
 
-hRange = 100e3:5e3:40e6;
+hRange = 100e3:5e3:1e8;
 theta = 2*atan(marsRadius./(hRange+marsRadius));
 figure;
 semilogx(hRange/1e3,rad2deg(theta))
@@ -328,7 +335,7 @@ V = sqrt(marsGravitationalParameter * (2./(marsRadius+hRange) - 2./(2*marsRadius
 tBeamTravel = 2*hRange / 299792458;
 
 figure
-plot(hRange/1e3, tBeamTravel.*V)
+plot(hRange/1e3,tBeamTravel.*V,'LineWidth',1.5)
 xlabel('Altitude [km]')
 ylabel('Distance Travelled [m]')
 set(gca,'FontSize',15,'XScale','log')
@@ -336,20 +343,41 @@ grid on
 
 %%
 
-figure
-distance = hRange(end)+marsRadius;
-theta = 0.001:0.001:asin(marsRadius/distance);
-pseudoAltitude = marsRadius ./ sin( theta ) .* sin( - theta + asin( distance/marsRadius * sin(theta) ) );
-hold on
-plot(rad2deg(theta),pseudoAltitude)
-plot(rad2deg([theta(1),theta(end)]),[hRange(end),hRange(end)],'LineStyle','--')
-hold off
-grid on
+pseudoAltitudeFunction = @(distance,theta) distance .* cos(theta) - ...
+    sqrt( marsRadius^2 - distance.^2 * sin( theta ).^2 );
 
 figure
-altitude = marsRadius * ( sin( pi - theta - asin( pseudoAltitude / marsRadius .* sin( theta ) ) ) ./ sin( theta ) - 1.0 ); 
+alt = 4.50065e+07;%hRange(end)
+distance = alt+marsRadius;
+theta = 0.001:0.001:asin(marsRadius/distance);
+pseudoAltitude = pseudoAltitudeFunction(distance,theta);
+%marsRadius ./ sin( theta ) .* sin( - theta + asin( distance/marsRadius * sin(theta) ) );
 hold on
-plot(rad2deg(theta),altitude)
-plot(rad2deg([theta(1),theta(end)]),[hRange(end),hRange(end)],'LineStyle','--')
+plot(rad2deg(theta),pseudoAltitude,'LineWidth',1.5)
+plot(rad2deg([theta(1),theta(end)]),[alt,alt],'LineWidth',1.5,'LineStyle','--')
+plot([3.5,3.5],ylim,'LineWidth',1.5,'LineStyle',':')
 hold off
+xlabel('Pointing Angle [deg]')
+ylabel('Altitude [km]')
+set(gca,'FontSize',15)
+grid on
+
+% figure
+% altitude = marsRadius * ( sin( pi - theta - asin( pseudoAltitude / marsRadius .* sin( theta ) ) ) ./ sin( theta ) - 1.0 ); 
+% hold on
+% plot(rad2deg(theta),altitude)
+% plot(rad2deg([theta(1),theta(end)]),[hRange(end),hRange(end)],'LineStyle','--')
+% hold off
+% grid on
+
+%%
+
+figure
+hold on
+plot(hRange/1e3,asind(marsRadius./(hRange+marsRadius)),'LineWidth',1.5)
+plot([5e3,5e3],ylim,'LineWidth',1.5,'LineStyle','--')
+hold off
+xlabel('Altitude [km]')
+ylabel('Maximum Pointing Angle [deg]')
+set(gca,'FontSize',15,'XScale','log')
 grid on

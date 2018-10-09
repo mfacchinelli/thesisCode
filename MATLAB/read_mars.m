@@ -21,6 +21,8 @@ apoapsis = 45000e3+radius;
 % apoapsis = 200e6+radius;
 % apoapsis = 420e3 + radius;
 % periapsis = 380e3 + radius;
+periapsis = 125e3+radius;
+apoapsis = 2500e3+radius;
 
 a = (apoapsis+periapsis)/2;
 e = (apoapsis-periapsis)/(apoapsis+periapsis);

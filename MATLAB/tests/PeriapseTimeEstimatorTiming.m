@@ -5,7 +5,7 @@ addpath functions tests
 
 %...Figure settings
 showFigure = true;
-saveFigure = false;
+saveFigure = true;
 [figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Constants
@@ -91,8 +91,12 @@ plotTrueAnomaly = false;
 
 %...Get time and location of variables below atmospheric interface
 reducedTime = simulationTime(1:end-1);
-locAbove = altitude(1:end-1) >= 0.25 * ( KeplerianResults(1:end-1,1) .* ( 1 + KeplerianResults(1:end-1,2) ) );
-locBelow = altitude(1:end-1) <= 0.25 * ( KeplerianResults(1:end-1,1) .* ( 1 + KeplerianResults(1:end-1,2) ) );
+dynamicAtmosphericInterfaceAltitude = 0.275 * ( ( KeplerianResults(1:end-1,1) .* ...
+    ( 1 + KeplerianResults(1:end-1,2) ) ) - marsRadius/1e3 ) + ...
+    0.01 * ( ( KeplerianResults(1,1) .* ( 1 + KeplerianResults(1,2) ) ) - ...
+    ( KeplerianResults(1:end-1,1) .* ( 1 + KeplerianResults(1:end-1,2) ) ) );
+locAbove = altitude(1:end-1) >= dynamicAtmosphericInterfaceAltitude;
+locBelow = altitude(1:end-1) <= dynamicAtmosphericInterfaceAltitude;
 
 semiMajorAxisDerivative = diff(KeplerianResults(:,1))./diff(simulationTime);
 semiMajorAxisDerivativeBelow = semiMajorAxisDerivative;

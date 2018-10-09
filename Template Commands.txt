@@ -7,16 +7,20 @@ cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_pro
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_Thesis; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_Thesis
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnly; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransGuidOnly; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransGuidOnly
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMAN; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMANRMS; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANRMS
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyAltimeter; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyAltimeter
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOnlyIMANLoop; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANLoop
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_ThesisTransOpenLoop; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOpenLoop
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_marsTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_marsTest
-
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_spartaTest; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications; time ./application_spartaTest
 
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_FilterEstimation; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/bin/applications; time ./application_FilterEstimation
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; time make -j 8 application_PropagatorTypesComparison; cd /Users/Michele/GitHub/tudat/tudatBundle/tudatExampleApplications/satellitePropagatorExamples/bin/applications; time ./application_PropagatorTypesComparison
 
+cd /Users/Michele/GitHub/tudat/build-tudatBundle; make test_TabulatedAtmosphere -j 8; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; ./test_TabulatedAtmosphere
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; make test_ExtendedKalmanFilter -j 8; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; ./test_ExtendedKalmanFilter
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; make test_UnscentedKalmanFilter -j 8; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; ./test_UnscentedKalmanFilter
 cd /Users/Michele/GitHub/tudat/build-tudatBundle; make test_JsonInterfaceVariable -j 8; cd /Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests; ./test_JsonInterfaceVariable
@@ -36,17 +40,13 @@ matlab -r -nodesktop -nodisplay -nosplash -nojvm 'RunSPARTAServerGallis'
 
 #--- Build and Run Application ---#
 cd ~/tudatBundle/build; make application_propagatorsComparison -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_propagatorsComparison
-
 cd ~/tudatBundle/build; make application_quaternionTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_quaternionTest
-
 cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_spartaTest
 
-cd ~/tudatBundle/build; make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_Thesis
-cd ~/tudatBundle/build; make application_ThesisTransOnlyIMAN -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; ./application_ThesisTransOnlyIMAN
-
-cd ~/tudatBundle/build; make test_UnifiedStateModelStateDerivative -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnifiedStateModelStateDerivative
-cd ~/tudatBundle/build; make test_ExtendedKalmanFilter -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_ExtendedKalmanFilter
-cd ~/tudatBundle/build; make test_UnscentedKalmanFilter -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnscentedKalmanFilter
+cd ~/tudatBundle/build; time make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_Thesis
+cd ~/tudatBundle/build; time make application_ThesisTransOnly -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
+cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMAN -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
+cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANRMS -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANRMS
 
 ##########################################################################################
 ### Run Example Sphere
@@ -75,7 +75,11 @@ mpirun --hostfile hostfile -np 4 /Users/Michele/Software/SPARTA/src/spa_mac_mpi 
 ### ImageMagick Toolkit
 
 #--- ADD PATHS TO MACOS ---#
-export MAGICK_HOME="/Users/Michele/Software/ImageMagick-7.0.7"; export PATH="$MAGICK_HOME/bin:$PATH"; export DYLD_LIBRARY_PATH="$MAGICK_HOME/lib/"
+export MAGICK_HOME="/Users/Michele/Software/ImageMagick-7.0.8"
+export PATH="$MAGICK_HOME/bin:$PATH"
+export DYLD_LIBRARY_PATH="$MAGICK_HOME/lib/"
+
+export MAGICK_HOME="/Users/Michele/Software/ImageMagick-7.0.8"; export PATH="$MAGICK_HOME/bin:$PATH"; export DYLD_LIBRARY_PATH="$MAGICK_HOME/lib/"
 
 #--- CONVERT SERIES OF IMAGES TO GIF ---#
 convert image.* movie.gif

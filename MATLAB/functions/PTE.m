@@ -1,4 +1,4 @@
-function [tp,dtheta,DV,Da,DP] = PTE(time,kepl,aero)
+function [tp,dtheta,DV,Da,De,DP] = PTE(time,kepl,aero)
 
 %...Constants
 mu = 42828375815756.1;	% Mars gravitational parameter
@@ -47,6 +47,7 @@ DV = -kappa * trapz(time,aero); % time is in minutes
 a0 = kepl(1,1); n0 = sqrt(mu/a0^3);
 e0 = kepl(1,2);
 Da = 2/n0*sqrt((1+e0)/(1-e0))*DV;
+De = 2*sqrt(a0*(1-e0^2)/mu)*DV;
 
 %...Find Delta Period
 DP = 2*pi*((a0+Da)^(3/2)-a0^(3/2))/sqrt(mu);
