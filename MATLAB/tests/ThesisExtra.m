@@ -6,52 +6,54 @@ marsRadius = 3389526.666666667;
 marsGravitationalParameter = 42828375815756.1;
 marsReducedAtmosphericInterface = 150;
 
+output = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/bin/applications/~/TudatResults/';
+
 %% Read Data
 
-number = 1;
+number = 135;
 
 %...Retrieve altitude
-filename = ['/Users/Michele/Desktop/Results/altitude',num2str(number),'.dat'];
+filename = [output,'altitude',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 estimatedAltitude = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 estimatedAltitude = estimatedAltitude{1}(1:10:end)/1e3;
 fclose(fileID);
 
 %...Retrieve acceleration
-filename = ['/Users/Michele/Desktop/Results/acceleration',num2str(number),'.dat'];
+filename = [output,'acceleration',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 measuredAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 measuredAcceleration = measuredAcceleration{1}(1:10:end);
 fclose(fileID);
 
 %...Retrieve density
-filename = ['/Users/Michele/Desktop/Results/density',num2str(number),'.dat'];
+filename = [output,'density',num2str(number),'.dat'];
 fileID = fopen(filename,'r');
 estimatedDensity = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
 estimatedDensity = estimatedDensity{1}(1:10:end);
 fclose(fileID);
 
-% %...Retrieve Keplerian elements
-% filename = ['/Users/Michele/Desktop/Results/kepler_',num2str(number),'.dat'];
-% fileID = fopen(filename,'r');
-% orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
-% pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
-% pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end);
-% fclose(fileID);
-% 
-% %...Retrieve acceleration
-% filename = ['/Users/Michele/Desktop/Results/aero_',num2str(number),'.dat'];
-% fileID = fopen(filename,'r');
-% pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
-% pteAcceleration = pteAcceleration{1}(1:10:end);
-% fclose(fileID);
+%...Retrieve Keplerian elements
+filename = [output,'kepler_',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+orbitData = textscan(fileID,repmat('%f ',[1,7]),'Delimiter',',','CollectOutput',true);
+pteTime = orbitData{1}(1:10:end,1); pteTime = pteTime-pteTime(1);
+pteKeplerianEstimatedResults = orbitData{1}(1:10:end,2:end);
+fclose(fileID);
+
+%...Retrieve acceleration
+filename = [output,'aero_',num2str(number),'.dat'];
+fileID = fopen(filename,'r');
+pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
+pteAcceleration = pteAcceleration{1}(1:10:end);
+fclose(fileID);
 
 %% Run PTE
 
 clc
 
 %...Run Periapse Time Estimator function
-[tp,dtheta,DV,Da,De] = PTE(pteTime,pteKeplerianEstimatedResults,pteAcceleration)
+% [tp,dtheta,DV,Da,De] = PTE(pteTime,pteKeplerianEstimatedResults,pteAcceleration)
 
 % keplerAltitude = pteKeplerianEstimatedResults(:,1) .* ( 1-pteKeplerianEstimatedResults(:,2).^2 ) ./ ...
 %     ( 1 + pteKeplerianEstimatedResults(:,2) .* cos( pteKeplerianEstimatedResults(:,6) ) ) - marsRadius;
@@ -117,7 +119,7 @@ legend('Measured','Own','MATLAB')%,'Reference')
 
 %% Fit Other Model
 
-% clc
+clc
 
 %...Initial values
 x = [log( 2.424e-08 ), 1.0 / 6533.0, -1.0, 0.0, 0.0]';
@@ -154,9 +156,6 @@ for i = 1:10
     end
 %     [lambda,rho,dx']
 end
-% x = [2.11909e-09      2970.89    -0.428217 -0.000739212   3.3584e-05];
-% x(1) = log(x(1)); x(2) = 1/x(2);
-
 newDensityFunction = @(h) exp(x(1)) * exp( x(3) * h * x(2) + x(4) * cos( 2*pi*h*x(2) ) + ...
     x(5) * sin( 2*pi*h*x(2) ) );
 
@@ -179,7 +178,8 @@ table( [ 2.42386294453635e-08; exp( updatedEstimate(1) ); exp( x(1) ); exp( lsq.
     'VariableNames',{'DensityAtReferenceAltitude','ScaleHeight','Kappa1','Kappa2','Kappa3'} )
 
 %...C++ results
-cppFit = [132831 2.37122e-09     3991.26   -0.478632   0.0050322  0.00490655];
+% cppFit = [132831 2.37122e-09     3991.26   -0.478632   0.0050322  0.00490655];
+cppFit = [110122 5.62421e-08     6254.71    -1.13478    0.158959    0.175122];
 cppDensityFunction = @(h) cppFit(2) * exp( cppFit(4) * ( h*1e3 - cppFit(1) ) / cppFit(3) + ...
     cppFit(5) * cos( 2*pi*( ( h*1e3 - cppFit(1) ) / cppFit(3) ) ) + ...
     cppFit(6) * sin( 2*pi*( ( h*1e3 - cppFit(1) ) / cppFit(3) ) ) );
@@ -189,12 +189,12 @@ figure
 hold on
 scatter( atmosphericDensity, altitude )
 plot( newDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle','--')
-plot( cppDensityFunction( altitude ), altitude, 'LineWidth',1.25,'LineStyle','-.')
 plot( matlabDensityFunction( refAlt ), altitude, 'LineWidth',1.25,'LineStyle',':')
+% plot( cppDensityFunction( altitude ), altitude, 'LineWidth',1.25,'LineStyle','-.')
 hold off
 set(gca,'FontSize',15,'XScale','log')
 grid on
-legend('Measured','Own','C++','MATLAB')
+legend('Measured','Own','MATLAB')%,'C++')
 
 %%
 

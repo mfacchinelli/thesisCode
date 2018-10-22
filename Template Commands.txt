@@ -47,6 +47,10 @@ cd ~/tudatBundle/build; time make application_Thesis -j 14; cd ~/tudatBundle/tud
 cd ~/tudatBundle/build; time make application_ThesisTransOnly -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
 cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMAN -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
 cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANRMS -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANRMS
+cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANLoop -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANLoop
+
+cd ~/tudatBundle/build; make test_ExtendedKalmanFilter -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_ExtendedKalmanFilter
+cd ~/tudatBundle/build; make test_UnscentedKalmanFilter -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_UnscentedKalmanFilter
 
 ##########################################################################################
 ### Run Example Sphere

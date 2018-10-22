@@ -5,7 +5,7 @@ addpath functions tests
 
 %...Figure settings
 showFigure = true;
-saveFigure = true;
+saveFigure = false;
 [figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Constants
@@ -91,10 +91,15 @@ plotTrueAnomaly = false;
 
 %...Get time and location of variables below atmospheric interface
 reducedTime = simulationTime(1:end-1);
-dynamicAtmosphericInterfaceAltitude = 0.275 * ( ( KeplerianResults(1:end-1,1) .* ...
-    ( 1 + KeplerianResults(1:end-1,2) ) ) - marsRadius/1e3 ) + ...
-    0.01 * ( ( KeplerianResults(1,1) .* ( 1 + KeplerianResults(1,2) ) ) - ...
-    ( KeplerianResults(1:end-1,1) .* ( 1 + KeplerianResults(1:end-1,2) ) ) );
+% dynamicAtmosphericInterfaceAltitude = 0.275 * ( ( KeplerianResults(1:end-1,1) .* ...
+%     ( 1 + KeplerianResults(1:end-1,2) ) ) - marsRadius/1e3 ) + ...
+%     0.01 * ( ( KeplerianResults(1,1) .* ( 1 + KeplerianResults(1,2) ) ) - ...
+%     ( KeplerianResults(1:end-1,1) .* ( 1 + KeplerianResults(1:end-1,2) ) ) );
+
+percentage = 0.5 * ( 1 + ( 1 - KeplerianResults(1:end-1,1) / KeplerianResults(1,1) ) );
+dynamicAtmosphericInterfaceAltitude = percentage .* ( KeplerianResults(1:end-1,1) - marsRadius/1e3 );
+% find(dynamicAtmosphericInterfaceAltitude >= apoapsisAltitudes)
+
 locAbove = altitude(1:end-1) >= dynamicAtmosphericInterfaceAltitude;
 locBelow = altitude(1:end-1) <= dynamicAtmosphericInterfaceAltitude;
 
@@ -156,4 +161,7 @@ if ~plotTrueAnomaly && saveFigure
     L.Position = [0.15 0.327976190476191 0.298214285714286 0.165476190476191];
     xlim([144.84,144.94])
     saveas(F,'../../Report/figures/pte_timing_low_ecc','epsc')
+else
+    pause(1.5)
+    xlim([13,13.8])
 end

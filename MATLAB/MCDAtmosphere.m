@@ -13,8 +13,8 @@ if fullDatabase, folder = 'MCDFull';
 else, folder = 'MCD'; end
 
 genTable = false;
-showFigures = false;
-saveFigures = false;
+showFigures = true;
+saveFigures = true;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
@@ -549,6 +549,10 @@ if showFigures
     [lonH,latH,alt] = meshgrid(longitude,latitude,hs);
     [lonT,latT,time] = meshgrid(longitude,latitude,ts);
     
+    hs_plot_lab = hs_plot;
+    hs_plot_lab(hs_plot<1000) = round(hs_plot(hs_plot<1000),-1);
+    hs_plot_lab(hs_plot>=1000) = round(hs_plot(hs_plot>=1000),-2);
+    
     %...MCD Data
     for i = 1:D-G
         if i == densLoc || i == presLoc % density and pressure
@@ -565,7 +569,7 @@ if showFigures
             for t = 1:T
                 subplot(2,2,t)
                 S = slice(lonH,latH,alt,data{i}(:,:,:,t),[],[],hs_plot);
-                plotSettings(S,dataUnit{i},hs_plot,ts(t),true,true)
+                plotSettings(S,dataUnit{i},hs_plot_lab,ts(t),true,true)
             end
             if ~saveFigures, subplotTitle(dataStr{i}),
             else, saveas(F,['../../Report/figures/mars_',dataLabel{i}],'epsc'), end
@@ -587,7 +591,7 @@ if showFigures
         subplot(2,2,t)
         sos = sqrt(gasConstant(:,:,:,t).*specificHeatRatio(:,:,:,t).*data{tempLoc}(:,:,:,t));
         S = slice(lonH,latH,alt,sos,[],[],hs_plot);
-        plotSettings(S,dataUnit{windLoc},hs_plot,ts(t),true,true)
+        plotSettings(S,dataUnit{windLoc},hs_plot_lab,ts(t),true,true)
     end
     if ~saveFigures, subplotTitle('Speed of Sound'),
     else, saveas(F,'../../Report/figures/mars_sos','epsc'), end
@@ -683,7 +687,7 @@ function plotSettings(S,label,zs,w,log,three)
     if all( w > 1000 ), decimal = -2;
     else, decimal = -1; end
     if log
-        zlabel('Alt. [km]'), zticks(zs)
+        zlabel('Alt. [km]'), zticks(round(zs,-1))
         set(gca,'zscale','log','FontSize',15)
         title([num2str(round(w,decimal)),' deg'])
     else

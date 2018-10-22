@@ -23,6 +23,7 @@ fclose(fileID);
 %% Load C++ EKF Output
 
 filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/EKFEstimatedStateHistory.dat';
+% filename = '/Users/Michele/Desktop/Filter/EKFEstimatedStateHistory.dat';
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 x_cor_cpp = cpp_result{1}(:,2:end)';
@@ -31,6 +32,7 @@ fclose(fileID);
 %% Load C++ UKF Output
 
 filename = '/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Test/SimulationOutput/KF/UKFEstimatedStateHistory.dat';
+% filename = '/Users/Michele/Desktop/Filter/UKFEstimatedStateHistory.dat';
 fileID = fopen(filename,'r');
 cpp_result = textscan(fileID,'%f %f %f','CollectOutput',true,'Delimiter',',');
 x_cor_cpp_ukf = cpp_result{1}(:,2:end)';

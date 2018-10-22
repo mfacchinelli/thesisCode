@@ -29,13 +29,20 @@ rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]',
     '\omega_1 [deg s^{-1}]','\omega_2 [deg s^{-1}]','\omega_3 [deg s^{-1}]'};
 
 %...Main output folder
-mainOutputFolder = 'SimulationOutputTransOnlyIMANRMS/low_ecc/';
+extension = 'high_ecc/';
+mainOutputFolder = ['SimulationOutputTransOnlyIMANRMS/',extension];
 
 %% Loop Over Each Settings
 
 %...Predefine variables
 simulations = 0:7;
-ratios = [10,100];%,1000];
+if strcmp(extension,'high_ecc/')
+    ratios = [10,100,1000];
+elseif strcmp(extension,'low_ecc/')
+    ratios = [10,100];
+else
+    error('Input folder not recognized.')
+end
 rmsErrors = cell(length(simulations),length(ratios));
 finalErrors = cell(length(simulations),length(ratios));
 standardDeviations = cell(length(simulations),length(ratios));
@@ -76,8 +83,8 @@ for simulation = simulations
         filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/cartesianEstimated.dat'];
         fileID = fopen(filename,'r');
         CartesianEstimatedResults = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-        onboardTime = ( CartesianEstimatedResults{1}(:,1) - initialTime ) / timeConversion;
-        CartesianEstimatedResults = CartesianEstimatedResults{1}(:,2:end);
+        onboardTime = ( CartesianEstimatedResults{1}(1:end-1,1) - initialTime ) / timeConversion;
+        CartesianEstimatedResults = CartesianEstimatedResults{1}(1:end-1,2:end);
         CartesianEstimatedResults(:,1:3) = CartesianEstimatedResults(:,1:3) / 1e3;
         fclose(fileID);
         
@@ -85,7 +92,7 @@ for simulation = simulations
         filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/keplerianEstimated.dat'];
         fileID = fopen(filename,'r');
         KeplerianEstimatedResults = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
-        KeplerianEstimatedResults = KeplerianEstimatedResults{1}(:,2:end);
+        KeplerianEstimatedResults = KeplerianEstimatedResults{1}(1:end-1,2:end);
         KeplerianEstimatedResults(:,1) = KeplerianEstimatedResults(:,1) / 1e3;
         KeplerianEstimatedResults(:,3:end) = rad2deg(KeplerianEstimatedResults(:,3:end));
         fclose(fileID);
@@ -101,7 +108,7 @@ for simulation = simulations
             filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',...
                 outputFolder,'/filterStateEstimates.dat'];
             fileID = fopen(filename,'r');
-            filterStateEstimatedResults = textscan(fileID,repmat('%f',[1,10]),'Delimiter',',','CollectOutput',true);
+            filterStateEstimatedResults = textscan(fileID,repmat('%f',[1,11]),'Delimiter',',','CollectOutput',true);
             filterTime = ( filterStateEstimatedResults{1}(:,1) - initialTime ) / timeConversion;
             filterStateEstimatedResults = filterStateEstimatedResults{1}(:,2:end);
             filterStateEstimatedResults(:,1:3) = filterStateEstimatedResults(:,1:3)/1e3;
@@ -111,7 +118,7 @@ for simulation = simulations
             filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,...
                 '/filterCovarianceEstimates.dat'];
             fileID = fopen(filename,'r');
-            filterCovarianceEstimatedResults = textscan(fileID,repmat('%f',[1,10]),'Delimiter',',','CollectOutput',true);
+            filterCovarianceEstimatedResults = textscan(fileID,repmat('%f',[1,11]),'Delimiter',',','CollectOutput',true);
             filterCovarianceEstimatedResults = filterCovarianceEstimatedResults{1}(:,2:end);
             filterCovarianceEstimatedResults(:,1:3) = filterCovarianceEstimatedResults(:,1:3)/1e3;
             fclose(fileID);
@@ -128,17 +135,17 @@ for simulation = simulations
         %% Interpolate Results to Match Times
 
         %...Set interpolation time
-        interpolatedTime = onboardTime(5:end); %simulationTime
+        interpolatedTime = onboardTime;
         
         %...Interpolate
         if applyInterpolation
             %...Interpolate propagation results
-            CartesianPropagatedResults = interp1( simulationTime, CartesianPropagatedResults, interpolatedTime, 'spline' );
-            KeplerianPropagatedResults = interp1( simulationTime, KeplerianPropagatedResults, interpolatedTime, 'spline' );
+            CartesianPropagatedResults = interp1( simulationTime, CartesianPropagatedResults, interpolatedTime, 'linear' );
+            KeplerianPropagatedResults = interp1( simulationTime, KeplerianPropagatedResults, interpolatedTime, 'linear' );
             
             %...Interpolate estimation results
-            CartesianEstimatedResults = interp1( onboardTime, CartesianEstimatedResults, interpolatedTime, 'spline' );
-            KeplerianEstimatedResults = interp1( onboardTime, KeplerianEstimatedResults, interpolatedTime, 'spline' );
+            CartesianEstimatedResults = interp1( onboardTime, CartesianEstimatedResults, interpolatedTime, 'linear' );
+            KeplerianEstimatedResults = interp1( onboardTime, KeplerianEstimatedResults, interpolatedTime, 'linear' );
             
             %..Interpolate filter results
             if loadFilter
@@ -274,7 +281,9 @@ for simulation = simulations
         finalErrors{simulation+1,log10(ratio)} = CartesianEstimatedResults(end,:) - CartesianPropagatedResults(end,:);
         
         %...STD values
-        standardDeviations{simulation+1,log10(ratio)} = {interpolatedTime,sqrt(filterCovarianceEstimatedResults)};
+        if loadFilter
+            standardDeviations{simulation+1,log10(ratio)} = {interpolatedTime,sqrt(filterCovarianceEstimatedResults)};
+        end
         
         %% Clean Up
         
@@ -285,7 +294,7 @@ end
 %...Clean up
 clc
 clearvars -except simulations ratios rmsErrors finalErrors standardDeviations ...
-    showFigure saveFigure figSizeLarge figSizeMedium figSizeSmall ...
+    showFigure saveFigure figSizeLarge figSizeMedium figSizeSmall extension ...
     marsRadius marsGravitationalParameter marsAtmosphericInterface ...
     loadMeasurements loadFilter applyInterpolation ...
     timeConversion timeLabel CartesianLabels CartesianLabelsDifference KeplerianLabels rotationLabels
@@ -293,28 +302,30 @@ clearvars -except simulations ratios rmsErrors finalErrors standardDeviations ..
 %% Analyze Results
 
 %...Plot STD
-F = figure('rend','painters','pos',figSizeLarge);
-for i = 1:3
-    for j = 1:length(simulations)
-        subplot(8,3,i+3*(j-1))
-        hold on
-        for k = 1:length(ratios)
-            plot(standardDeviations{j,k}{1},standardDeviations{j,k}{2}(:,i),'LineWidth',1.25)
+if loadFilter
+    F = figure('rend','painters','pos',figSizeLarge);
+    for i = 1:3
+        for j = 1:length(simulations)
+            subplot(8,3,i+3*(j-1))
+            hold on
+            for k = 1:length(ratios)
+                plot(standardDeviations{j,k}{1},standardDeviations{j,k}{2}(:,i),'LineWidth',1.25)
+            end
+            hold off
+            xlabel(timeLabel)
+            ylabel(CartesianLabels{i})
+            grid on
+            set(gca,'FontSize',15)
         end
-        hold off
-        xlabel(timeLabel)
-        ylabel(CartesianLabels{i})
-        grid on
-        set(gca,'FontSize',15)
     end
 end
-%%
+
 %...LaTeX tables
 rates = 2000 ./ ratios;
 fprintf(['& ',repmat('{%d} & ',[1,length(simulations)-1]),'{%d} \\\\\n'],1:length(simulations))
 fprintf('\\midrule\n')
-if length(ratios) == 3
-    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.0f & %.1f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
-elseif length(ratios) == 2
-    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.1f & %.2f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
+if strcmp(extension,'high_ecc/')
+    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.1f & %.0f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
+elseif strcmp(extension,'low_ecc/')
+    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.2f & %.1f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
 end
