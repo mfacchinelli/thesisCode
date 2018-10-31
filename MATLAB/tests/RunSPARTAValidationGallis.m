@@ -57,6 +57,7 @@ r2sOffset = 15; % number of simulated particles per cell
 simAnglesOfAttack = 0; % angles of attack for simulation
 simAltRarefied = 100:5:150; % altitudes for rarefied regime simulations
 simGases = {'CO2'};%,'H','O'};
+simGasesLabel = {'CO_2'};%,'H','O'};
 gasRatios = {1.0};%,1.0,1.0};
 
 %...Time settings
@@ -280,7 +281,7 @@ if showFigure
     ylabel('Drag Coefficient [-]')
     set(gca,'FontSize',15,'XScale','log')
     grid on
-    legend(simGases{:},'Reference')
+    legend(simGasesLabel{:},'Reference')
     if saveFigure, saveas(F,['../../Report/figures/valid_gallis'],'epsc'), end
 end
 

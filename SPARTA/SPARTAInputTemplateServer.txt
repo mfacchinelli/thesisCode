@@ -26,8 +26,11 @@ mixture atm %s temp %.1f # gas names
 # START LOOP OVER ANGLE OF ATTACK
 variable alpha index %s
 
+# START LOOP OVER ANGLE OF SIDE-SLIP
+variable beta index %s
+
 # READ MRO DATA FROM FILE
-read_surf data.mro rotate ${alpha} 0 -1 0
+read_surf data.mro rotate ${alpha} 0 -1 0 rotate ${beta} 0 0 1
 group mro surf type 1
 
 # CREATE COLLISION MODEL BASED ON VSS
@@ -43,7 +46,7 @@ timestep %f
 # COMPUTE NORMAL PRESSURE AND SHEAR STRESS
 compute 1 surf mro atm px py pz shx shy shz
 fix 1 ave/surf mro 10 20 200 c_1[*]
-dump 1 surf mro 200 %s/${alpha}.coeff.* id f_1[*]
+dump 1 surf mro 200 %s/${beta}/${alpha}.coeff.* id f_1[*]
 
 # GENERATE STATISTICS ON PROGRESS
 stats 100
@@ -51,6 +54,11 @@ stats_style step cpu np nattempt ncoll nscoll nscheck
 
 # RUN SIMULATION
 run %d
+
+# CLOSE ANGLE OF SIDE-SLIP LOOP
+clear
+next beta
+jump in.mro
 
 # CLOSE ANGLE OF ATTACK LOOP
 clear

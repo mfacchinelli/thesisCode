@@ -7,7 +7,7 @@ fclose('all'); clear all; close all force; profile off; clc; format long g; rng 
 %       1: both real2sim and gridSpacing
 %       2: only real2sim
 %       3: only gridSpacing
-% testCase = 2;
+testCase = 0;
 
 %...Rotate by 180 degrees
 rotateMRO = false;
@@ -91,6 +91,7 @@ switch testCase
         simAnglesOfAttack = -30:5:30; % angles of attack for simulation
         simAltRarefied = 125; % altitudes for rarefied regime simulations
 end
+simAnglesOfSideSlip = -15:5:15; % angles of side-slip for simulation
 
 %...Time settings
 simTimeStep = round(0.1*diff(MROExtent(1,:))/3500,5); % time step (1/10-th box traverse time)
@@ -183,7 +184,7 @@ dataFolder = cell(size(simAltRarefied));
 tic;
 
 %...Clean up folders
-system(['rm ',fullfile(adapt2UNIX(OutputRepository),'*/*.coeff.*')]);
+system(['rm ',fullfile(adapt2UNIX(OutputRepository),'*/*/*.coeff.*')]);
 
 %...Generate command
 if useHostFile
@@ -204,7 +205,10 @@ for h = 1:length(simAltRarefied)
     dataFolder{h} = fullfile(OutputRepository,num2str(simAltRarefied(h)));
     
     %...Create folder if inexistent
-    if ~exist(dataFolder{h},'dir'), mkdir(dataFolder{h}), end
+    for b = 1:length(simAnglesOfSideSlip)
+        folder = fullfile(dataFolder{h},num2str(simAnglesOfSideSlip(b),'%.0f'));
+        if ~exist(folder,'dir'), mkdir(folder), end
+    end
     
     %...Gas fraction specifications
     gasFractions = '';
@@ -218,8 +222,8 @@ for h = 1:length(simAltRarefied)
     fileID = fopen(MROInputFile,'w');
     fprintf(fileID,template,simBox,simGrid,numberDensity(h),real2sim(h),gasNamesString{h},...
         gasFractions,gasNamesString{h},streamVelocity(h,:),gasNamesString{h},...
-        temperature(h),num2str(simAnglesOfAttack,'%.0f '),simTimeStep,...
-        erase(dataFolder{h},[MRORepository,'/']),simSteps);
+        temperature(h),num2str(simAnglesOfAttack,'%.0f '),num2str(simAnglesOfSideSlip,'%.0f '),...
+        simTimeStep,erase(dataFolder{h},[MRORepository,'/']),simSteps);
     fclose(fileID);
     
     %...Run command via Terminal

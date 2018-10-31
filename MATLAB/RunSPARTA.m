@@ -2,12 +2,12 @@ fclose('all'); clear all; close all force; profile off; clc; format long g; rng 
 addpath functions
 
 %...Set system path
-setenv('PATH',[getenv('PATH'),':/Users/Michele/Software/ImageMagick-7.0.7/bin:/opt/local/bin:',...
+setenv('PATH',[getenv('PATH'),':/Users/Michele/Software/ImageMagick-7.0.8/bin:/opt/local/bin:',...
     '/opt/local/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Library/TeX/texbin:/opt/X11/bin']);
 
 %...Set ImageMagick path
-setenv('MAGICK_HOME','/Users/Michele/Software/ImageMagick-7.0.7')
-setenv('DYLD_LIBRARY_PATH','$MAGICK_HOME/ImageMagick-7.0.7/lib/')
+setenv('MAGICK_HOME','/Users/Michele/Software/ImageMagick-7.0.8')
+setenv('DYLD_LIBRARY_PATH','$MAGICK_HOME/ImageMagick-7.0.8/lib/')
 
 %% SPARTA and Modeling Variables
 
@@ -75,7 +75,7 @@ r2sOffset = 20; % number of simulated particles per cell
 
 %...Simulation conditions
 simAnglesOfAttack = -30:5:30; % angles of attack for simulation
-%[linspace(-75,-30,4),-25:5:25,linspace(30,75,4)];
+simAnglesOfSideSlip = -15:5:15; % angles of side-slip for simulation
 simAltRarefied = [100,125,150,200,300,500]; % altitudes for rarefied regime simulations
 simAltContinuum = 65; % altitudes for continuum regime simulations
 
@@ -177,9 +177,9 @@ switch lower(selection)
         tic;
         
         %...Clean up folders
-        system(['rm ',fullfile(adapt2UNIX(OutputRepository),'*/*.coeff.*')]);
-        system(['rm ',fullfile(adapt2UNIX(ImageRepository),'*/*.image.*')]);
-        system(['rm ',fullfile(adapt2UNIX(VideoRepository),'*')]);
+%         system(['rm ',fullfile(adapt2UNIX(OutputRepository),'*/*/*.coeff.*')]);
+%         system(['rm ',fullfile(adapt2UNIX(ImageRepository),'*/*/*.image.*')]);
+%         system(['rm ',fullfile(adapt2UNIX(VideoRepository),'*')]);
         
         %...Generate command
         if useHostFile
@@ -188,7 +188,7 @@ switch lower(selection)
                 adapt2UNIX(MROInputFile)];
         else
             commandString = ['cd ',adapt2UNIX(MRORepository),';',...
-                'mpirun -np 2 ',adapt2UNIX(SPARTAExec),' -in ',...
+                'mpirun -np 4 ',adapt2UNIX(SPARTAExec),' -in ',...
                 adapt2UNIX(MROInputFile)];
         end
         
@@ -201,8 +201,12 @@ switch lower(selection)
             imageFolder{h} = fullfile(ImageRepository,num2str(simAltRarefied(h)));
             
             %...Create folder if inexistent
-            if ~exist(dataFolder{h},'dir'), mkdir(dataFolder{h}), end
-            if ~exist(imageFolder{h},'dir'), mkdir(imageFolder{h}), end
+            for b = 1:length(simAnglesOfSideSlip)
+                folder = fullfile(dataFolder{h},num2str(simAnglesOfSideSlip(b),'%.0f'));
+                if ~exist(folder,'dir'), mkdir(folder), end
+                folder = fullfile(imageFolder{h},num2str(simAnglesOfSideSlip(b),'%.0f'));
+                if ~exist(folder,'dir'), mkdir(folder), end
+            end
             
             %...Gas fraction specifications
             gasFractions = '';
@@ -216,7 +220,7 @@ switch lower(selection)
             fileID = fopen(MROInputFile,'w');
             fprintf(fileID,template,simBox,simGrid,numberDensity(h),real2sim(h),gasNamesString{h},...
                 gasFractions,gasNamesString{h},streamVelocity(h,:),gasNamesString{h},...
-                temperature(h),num2str(simAnglesOfAttack,'%.0f '),simTimeStep,...
+                temperature(h),num2str(simAnglesOfAttack,'%.0f '),num2str(simAnglesOfSideSlip,'%.0f '),simTimeStep,...
                 erase(dataFolder{h},[MRORepository,'/']),erase(imageFolder{h},[MRORepository,'/']),...
                 simSteps);
             fclose(fileID);
@@ -262,60 +266,62 @@ solarPanelMomentArm = computeMomentArm(points,triangles(solarPanelElements.faces
 %% Analyze SPARTA Rarefied Results
 
 %...Get results for rarefied flow
-pressureCoeffRarefied = cell(length(simAnglesOfAttack),length(simAltRarefied));
-frictionCoeffRarefied = cell(length(simAnglesOfAttack),length(simAltRarefied));
-solarPanelBendingMomentRarefied = cell(length(simAnglesOfAttack),length(simAltRarefied));
+pressureCoeffRarefied = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltRarefied));
+frictionCoeffRarefied = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltRarefied));
+solarPanelBendingMomentRarefied = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltRarefied));
 aeroCoeffRarefied = cell(length(simAnglesOfAttack),length(simAltRarefied));
 for h = 1:length(simAltRarefied)
-    for a = 1:length(simAnglesOfAttack)
-        %...Get (average) distribution
-        distribution = cell(size(simAltRarefied));
-        files = dir(fullfile(dataFolder{h},[num2str(simAnglesOfAttack(a)),'.coeff.*']));
-        for i = 1:length(files)
-            fileID = fopen(fullfile(files(i).folder,files(i).name),'r');
-            result = textscan(fileID,repmat('%f ',[1,7]),'HeaderLines',9,'CollectOutput',true);
-            result = sortrows(result{1},1);
-            distribution{i} = result(:,2:end);
-            fclose(fileID);
+    for b = 1:length(simAnglesOfSideSlip)
+        for a = 1:length(simAnglesOfAttack)
+            %...Get (average) distribution
+            distribution = cell(size(simAltRarefied));
+            files = dir(fullfile(dataFolder{h},num2str(simAnglesOfSideSlip(b)),[num2str(simAnglesOfAttack(a)),'.coeff.*']));
+            for i = 1:length(files)
+                fileID = fopen(fullfile(files(i).folder,files(i).name),'r');
+                result = textscan(fileID,repmat('%f ',[1,7]),'HeaderLines',9,'CollectOutput',true);
+                result = sortrows(result{1},1);
+                distribution{i} = result(:,2:end);
+                fclose(fileID);
+            end
+            
+            %...Take median to minimize effect of outliers
+            %   Note that the first two files are NOT used, since the simulation
+            %   is still starting up
+            averageDistribution = median(cat(3,distribution{3:end}),3);
+            
+            %...Transformation from aerodynamic to body frame
+            transformation = roty(simAnglesOfAttack(a)) * rotz(-simAnglesOfSideSlip(b));
+            
+            %...Compute pressure and friction coefficients
+            dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
+            pressureCoeffRarefied{a,b,h} = (averageDistribution(:,1:3) - pressure(h) * ...
+                ( transformation' * trianglesNormal' )' ) / dynamicPressure; % rotate normal to account for angle of attack
+            frictionCoeffRarefied{a,b,h} = averageDistribution(:,4:6) / dynamicPressure;
+            
+            %...Compute solar panel bending moment
+            solarPanelDistribution = averageDistribution(solarPanelElements.faces,1:3) + ...
+                averageDistribution(solarPanelElements.faces,4:6);
+            solarPanelDistributionInBodyFrame = arrayfun(@(i)transformation * ...
+                solarPanelDistribution(i,:)',1:size(solarPanelDistribution,1),'UniformOutput',false);
+            solarPanelBendingMomentRarefied{a,b,h} = sum(cross(solarPanelMomentArm,[solarPanelDistributionInBodyFrame{:}]') .* ...
+                solarPanelTrianglesArea);
+            
+            %...Integrate to find force coefficients
+            forceCoefficients = sum((pressureCoeffRarefied{a,b,h} + frictionCoeffRarefied{a,b,h}) .* ...
+                trianglesArea) / crossSectionalArea(referenceArea);
+            
+            %...Integrate to find moment coefficients
+            momentArmInAerodynamicFrame = arrayfun(@(i)transformation' * ...
+                momentArm(i,:)',1:size(momentArm,1),'UniformOutput',false);
+            momentCoefficients = sum(cross([momentArmInAerodynamicFrame{:}]', ...
+                pressureCoeffRarefied{a,b,h} + frictionCoeffRarefied{a,b,h}) .* ...
+                trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
+            
+            %...Find side, drag and lift coefficients
+            %   Note that a negative sign is added since aerodynamic forces are
+            %   positive in the negative direction
+            aeroCoeffRarefied{a,b,h} = - [forceCoefficients,momentCoefficients]';
         end
-        
-        %...Take median to minimize effect of outliers
-        %   Note that the first two files are NOT used, since the simulation
-        %   is still starting up
-        averageDistribution = median(cat(3,distribution{3:end}),3);
-        
-        %...Transformation from aerodynamic to body frame
-        transformation = roty(simAnglesOfAttack(a));
-        
-        %...Compute pressure and friction coefficients
-        dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
-        pressureCoeffRarefied{a,h} = (averageDistribution(:,1:3) - pressure(h) * ...
-            ( transformation' * trianglesNormal' )' ) / dynamicPressure; % rotate normal to account for angle of attack
-        frictionCoeffRarefied{a,h} = averageDistribution(:,4:6) / dynamicPressure;
-        
-        %...Compute solar panel bending moment
-        solarPanelDistribution = averageDistribution(solarPanelElements.faces,1:3) + ...
-            averageDistribution(solarPanelElements.faces,4:6);
-        solarPanelDistributionInBodyFrame = arrayfun(@(i)transformation * ...
-            solarPanelDistribution(i,:)',1:size(solarPanelDistribution,1),'UniformOutput',false);
-        solarPanelBendingMomentRarefied{a,h} = sum(cross(solarPanelMomentArm,[solarPanelDistributionInBodyFrame{:}]') .* ...
-            solarPanelTrianglesArea);
-        
-        %...Integrate to find force coefficients
-        forceCoefficients = sum((pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}) .* ...
-            trianglesArea) / crossSectionalArea(referenceArea);
-        
-        %...Integrate to find moment coefficients
-        momentArmInAerodynamicFrame = arrayfun(@(i)transformation' * ...
-            momentArm(i,:)',1:size(momentArm,1),'UniformOutput',false);
-        momentCoefficients = sum(cross([momentArmInAerodynamicFrame{:}]', ...
-            pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}) .* ...
-            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
-        
-        %...Find side, drag and lift coefficients
-        %   Note that a negative sign is added since aerodynamic forces are
-        %   positive in the negative direction
-        aeroCoeffRarefied{a,h} = - [forceCoefficients,momentCoefficients]';
     end
 end
 clear distribution files fileID result averageDistribution transformation solarPanelDistribution ...
@@ -346,44 +352,46 @@ cps = stagnationPressure(gamma,Mach); % stagnation pressure
 cpb = basePressure(gamma,Mach); % base pressure
 
 %...Loop over altitudes and angles of attack
-pressureCoeffContinuum = cell(length(simAnglesOfAttack),length(simAltContinuum));
-solarPanelBendingMomentContinuum = cell(length(simAnglesOfAttack),length(simAltContinuum));
-aeroCoeffContinuum = cell(length(simAnglesOfAttack),length(simAltContinuum));
+pressureCoeffContinuum = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltContinuum));
+solarPanelBendingMomentContinuum = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltContinuum));
+aeroCoeffContinuum = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltContinuum));
 for h = 1:length(simAltContinuum)
-    for a = 1:length(simAnglesOfAttack)
-        %...Find velocity vector at angle of attack
-        transformation = roty(simAnglesOfAttack(a)); % from aerodynamic to body frame
-        V = transformation * velocityVector;
-        
-        %...Find incidence angle
-        sineIncidenceAngle = - trianglesNormal * V; % dot product
-        locPos = sineIncidenceAngle > 0;
-        locNeg = sineIncidenceAngle <= 0;
-        
-        %...Find pressure coefficient
-        pressureCoeffContinuum{a,h} = zeros(size(sineIncidenceAngle));
-        pressureCoeffContinuum{a,h}(locPos) = cps(h) * sineIncidenceAngle(locPos).^2;
-        pressureCoeffContinuum{a,h}(locNeg) = cpb(h);
-        pressureCoeffContinuum{a,h} = pressureCoeffContinuum{a,h} .* trianglesNormal;
-        
-         %...Compute solar panel bending moment
-        dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
-        solarPanelDistribution = - pressureCoeffContinuum{a,h}(solarPanelElements.faces,:); % negative sign due to definition
-        solarPanelBendingMomentContinuum{a,h} = sum(cross(solarPanelMomentArm,solarPanelDistribution) * ...
-            dynamicPressure .* solarPanelTrianglesArea);
-        
-        %...Integrate to find force coefficients
-        forceCoefficients = sum(pressureCoeffContinuum{a,h} .* trianglesArea) ./ crossSectionalArea(referenceArea);
-        
-        %...Integrate to find moment coefficients
-        momentCoefficients = sum(cross(momentArm,pressureCoeffContinuum{a,h}) .* ...
-            trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
-        
-        %...Find aerodynamic coefficients
-        %   Note that no negative sign is used here, since the pressure
-        %   coefficient is already 'negative'
-        aeroCoeffContinuum{a,h} = [ transformation' * forceCoefficients'; ...
-            momentCoefficients' ]; % inverse rotation
+    for b = 1:length(simAnglesOfSideSlip)
+        for a = 1:length(simAnglesOfAttack)
+            %...Find velocity vector at angle of attack
+            transformation = roty(simAnglesOfAttack(a)) * rotz(-simAnglesOfSideSlip(b)); % from aerodynamic to body frame
+            V = transformation * velocityVector;
+            
+            %...Find incidence angle
+            sineIncidenceAngle = - trianglesNormal * V; % dot product
+            locPos = sineIncidenceAngle > 0;
+            locNeg = sineIncidenceAngle <= 0;
+            
+            %...Find pressure coefficient
+            pressureCoeffContinuum{a,b,h} = zeros(size(sineIncidenceAngle));
+            pressureCoeffContinuum{a,b,h}(locPos) = cps(h) * sineIncidenceAngle(locPos).^2;
+            pressureCoeffContinuum{a,b,h}(locNeg) = cpb(h);
+            pressureCoeffContinuum{a,b,h} = pressureCoeffContinuum{a,b,h} .* trianglesNormal;
+            
+            %...Compute solar panel bending moment
+            dynamicPressure = 1/2 * density(h) * norm(streamVelocity(h,:))^2;
+            solarPanelDistribution = - pressureCoeffContinuum{a,b,h}(solarPanelElements.faces,:); % negative sign due to definition
+            solarPanelBendingMomentContinuum{a,b,h} = sum(cross(solarPanelMomentArm,solarPanelDistribution) * ...
+                dynamicPressure .* solarPanelTrianglesArea);
+            
+            %...Integrate to find force coefficients
+            forceCoefficients = sum(pressureCoeffContinuum{a,b,h} .* trianglesArea) ./ crossSectionalArea(referenceArea);
+            
+            %...Integrate to find moment coefficients
+            momentCoefficients = sum(cross(momentArm,pressureCoeffContinuum{a,b,h}) .* ...
+                trianglesArea) / crossSectionalArea(referenceArea) / referenceLength;
+            
+            %...Find aerodynamic coefficients
+            %   Note that no negative sign is used here, since the pressure
+            %   coefficient is already 'negative'
+            aeroCoeffContinuum{a,b,h} = [ transformation' * forceCoefficients'; ...
+                momentCoefficients' ]; % inverse rotation
+        end
     end
 end
 clear transformation V sineIncidenceAngle locPos locNeg dynamicPressure solarPanelDistribution ...
@@ -404,49 +412,54 @@ knudsen = interpolate(altitude,simAltTransition,knudsen);
 
 %...Combine coefficients
 %   Note that here, the values at 125 km are selected as reference
-aeroCoeffTotal = horzcat(aeroCoeffContinuum(:,end),aeroCoeffRarefied(:,2));
+aeroCoeffTotal = cat(3,aeroCoeffContinuum(:,:,end),aeroCoeffRarefied(:,:,2));
 
 %...Find transition coefficients
-aeroCoeffTranstion = cell(length(simAnglesOfAttack),length(simAltTransition));
+aeroCoeffTranstion = cell(length(simAnglesOfAttack),length(simAnglesOfSideSlip),length(simAltTransition));
 for h = 1:length(simAltTransition)
-    for a = 1:length(simAnglesOfAttack)
-        aeroCoeffTranstion{a,h} = (aeroCoeffTotal{a,2} - aeroCoeffTotal{a,1}) * ...
-            bridge(knudsen(h)) + aeroCoeffTotal{a,1};
+    for b = 1:length(simAnglesOfSideSlip)
+        for a = 1:length(simAnglesOfAttack)
+            aeroCoeffTranstion{a,b,h} = (aeroCoeffTotal{a,b,2} - aeroCoeffTotal{a,b,1}) * ...
+                bridge(knudsen(h)) + aeroCoeffTotal{a,b,1};
+        end
     end
 end
 
 %...Combine coefficients to add transition
-aeroCoeffTotal = horzcat(aeroCoeffTotal(:,1),aeroCoeffTranstion,aeroCoeffTotal(:,2));
+aeroCoeffTotal = cat(3,aeroCoeffTotal(:,:,1),aeroCoeffTranstion,aeroCoeffTotal(:,:,2));
 
 %...Combine coefficients without transition
-aeroCoefficients = horzcat(aeroCoeffContinuum,aeroCoeffTranstion,aeroCoeffRarefied(:,2:end));
+aeroCoefficients = cat(3,aeroCoeffContinuum,aeroCoeffTranstion,aeroCoeffRarefied(:,:,2:end));
 simAltitudes = horzcat(simAltContinuum,simAltTransition,simAltRarefied(2:end));
 
 %% Bending Moment Analysis
 
 %...Find maximum bending moment conditions for rarefied flow
 solarPanelBendingMomentRarefiedMagnitude = cellfun(@norm,solarPanelBendingMomentRarefied);
-maxSolarPanelBendingMomentRarefiedMagnitude = max(max(solarPanelBendingMomentRarefiedMagnitude));
-[i,j] = ind2sub(size(solarPanelBendingMomentRarefiedMagnitude),...
+maxSolarPanelBendingMomentRarefiedMagnitude = max(max(max(solarPanelBendingMomentRarefiedMagnitude)));
+[locRareMaxAOA,locRareMaxASS,locRareMaxAlt] = ind2sub(size(solarPanelBendingMomentRarefiedMagnitude),...
     find(maxSolarPanelBendingMomentRarefiedMagnitude==solarPanelBendingMomentRarefiedMagnitude));
 
 %...Print results
 fprintf(['Maximum bending moment in RAREFIED flow: %.3f Nm.\n ',...
-    '\tConditions: AOA %.1f deg, Alt. %.0f km.\n'],maxSolarPanelBendingMomentRarefiedMagnitude,...
-    simAnglesOfAttack(i),simAltRarefied(j))
+    '\tConditions: AOA %.1f deg, AOSS %.1f deg, Alt. %.0f km.\n'],maxSolarPanelBendingMomentRarefiedMagnitude,...
+    simAnglesOfAttack(locRareMaxAOA),simAnglesOfSideSlip(locRareMaxASS),simAltRarefied(locRareMaxAlt))
 
 %...Find maximum bending moment conditions for continuum flow
 solarPanelBendingMomentContinuumMagnitude = cellfun(@norm,solarPanelBendingMomentContinuum);
-maxSolarPanelBendingMomentContinuumMagnitude = max(max(solarPanelBendingMomentContinuumMagnitude));
-[i,j] = ind2sub(size(solarPanelBendingMomentContinuumMagnitude),...
+maxSolarPanelBendingMomentContinuumMagnitude = max(max(max(solarPanelBendingMomentContinuumMagnitude)));
+[locContMaxAOA,locContMaxASS,locContMaxAlt] = ind2sub(size(solarPanelBendingMomentContinuumMagnitude),...
     find(maxSolarPanelBendingMomentContinuumMagnitude==solarPanelBendingMomentContinuumMagnitude));
 
 %...Print results
 fprintf(['Maximum bending moment in CONTINUUM flow: %.3f Nm.\n ',...
-    '\tConditions: AOA %.1f deg, Alt. %.0f km.\n'],maxSolarPanelBendingMomentContinuumMagnitude,...
-    simAnglesOfAttack(i),simAltContinuum(j))
+    '\tConditions: AOA %.1f deg, AOSS %.1f deg, Alt. %.0f km.\n'],maxSolarPanelBendingMomentContinuumMagnitude,...
+    simAnglesOfAttack(locContMaxAOA),simAnglesOfSideSlip(locContMaxASS),simAltRarefied(locContMaxAlt))
 
-%% Plot Aerodynamic Coefficients
+%% Plot Aerodynamic Coefficients vs Angle of Attack
+
+locZeroAOA = simAnglesOfAttack == 0;
+locZeroASS = simAnglesOfSideSlip == 0;
 
 %...Plot
 if showFigure
@@ -458,7 +471,7 @@ if showFigure
             figure('rend','painters','pos',figSizeSmall);
             hold on
             for h = 1:length(simAltitudes)
-                plot(simAnglesOfAttack,cellfun(@(x)x(i),aeroCoefficients(:,h)),styles{h},'LineWidth',1.25,'MarkerSize',10)
+                plot(simAnglesOfAttack,cellfun(@(x)x(i),aeroCoefficients(:,locZeroASS,h)),styles{h},'LineWidth',1.25,'MarkerSize',10)
             end
             hold off
             xlabel('Angle of Attack [deg]')
@@ -472,7 +485,7 @@ if showFigure
         figure('rend','painters','pos',figSizeSmall);
         hold on
         for h = 1:length(simAltitudes)
-            plot(cellfun(@(x)x(3),aeroCoefficients(:,h)),cellfun(@(x)x(1),aeroCoefficients(:,h)),...
+            plot(cellfun(@(x)x(3),aeroCoefficients(:,locZeroASS,h)),cellfun(@(x)x(1),aeroCoefficients(:,locZeroASS,h)),...
                 styles{h},'LineWidth',1.25,'MarkerSize',10)
         end
         hold off
@@ -487,7 +500,8 @@ if showFigure
             F = figure('rend','painters','pos',figSizeSmall);
             hold on
             for h = 2:length(simAltRarefied) % skip 100 km
-                plot(simAnglesOfAttack,cellfun(@(x)x(i),aeroCoeffRarefied(:,h)),styles{h},'LineWidth',1.25,'MarkerSize',10)
+                plot(simAnglesOfAttack,cellfun(@(x)x(i),aeroCoeffRarefied(:,locZeroASS,h)),styles{h},...
+                    'LineWidth',1.25,'MarkerSize',10)
             end
             hold off
             xlabel('Angle of Attack [deg]')
@@ -511,15 +525,15 @@ if showFigure
         
         F = figure('rend','painters','pos',figSizeSmall);
         hold on
-        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffRarefied(:,2)), ...
+        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffRarefied(:,locZeroASS,2)), ...
             styles{1},'LineWidth',1.25,'MarkerSize',10) % full moment
         plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to pressure only
-            arrayfun(@(a)-sum(cross(momentArm,pressureCoeffRarefied{a,2}) .* ...
+            arrayfun(@(a)-sum(cross(momentArm,pressureCoeffRarefied{a,locZeroASS,2}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
             1:length(simAnglesOfAttack),'UniformOutput',false) ), ...
             styles{2},'LineWidth',1.25,'MarkerSize',10)
         plot(simAnglesOfAttack,cellfun(@(x)x(2),... % moment due to friction only
-            arrayfun(@(a)-sum(cross(momentArm,frictionCoeffRarefied{a,2}) .* ...
+            arrayfun(@(a)-sum(cross(momentArm,frictionCoeffRarefied{a,locZeroASS,2}) .* ...
             trianglesArea) / crossSectionalArea(referenceArea) / referenceLength, ...
             1:length(simAnglesOfAttack),'UniformOutput',false) ), ...
             styles{3},'LineWidth',1.25,'MarkerSize',10)
@@ -534,11 +548,11 @@ if showFigure
         %...Plot aerodynamic coefficients in 2D for continuum flow
         F = figure('rend','painters','pos',figSizeSmall);
         yyaxis left
-        plot(simAnglesOfAttack,cellfun(@(x)x(1),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
-        ylabel('Drag Coefficients [-]')
+        plot(simAnglesOfAttack,cellfun(@(x)x(1),aeroCoeffContinuum(:,locZeroASS,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+        ylabel([labels{1},' Coefficient [-]'])
         yyaxis right
-        plot(simAnglesOfAttack,cellfun(@(x)x(3),aeroCoeffContinuum(:,1)),styles{2},'LineWidth',1.25,'MarkerSize',10)
-        ylabel('Lift Coefficient [-]')
+        plot(simAnglesOfAttack,cellfun(@(x)x(3),aeroCoeffContinuum(:,locZeroASS,1)),styles{2},'LineWidth',1.25,'MarkerSize',10)
+        ylabel([labels{3},' Coefficient [-]'])
         xlabel('Angle of Attack [deg]')
         set(gca,'FontSize',15)
         grid on
@@ -547,10 +561,10 @@ if showFigure
         
         F = figure('rend','painters','pos',figSizeSmall);
         hold on
-        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffContinuum(:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+        plot(simAnglesOfAttack,cellfun(@(x)x(5),aeroCoeffContinuum(:,locZeroASS,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
         hold off
         xlabel('Angle of Attack [deg]')
-        ylabel('Moment Coefficient [-]')
+        ylabel([labels{5},' Coefficient [-]'])
         set(gca,'FontSize',15)
         grid on
         if saveFigure, saveas(F,'../../Report/figures/aero_cont_2d_moment','epsc'), end
@@ -559,7 +573,7 @@ if showFigure
     %...Plot aerodynamic coefficients in 3D against altitude
     for i = 1:2:6
         F = figure('rend','painters','pos',figSizeSmall);
-        surf(simAnglesOfAttack,simAltTotal,cellfun(@(x)x(i),aeroCoeffTotal)')
+        surf(simAnglesOfAttack,simAltTotal,squeeze(cellfun(@(x)x(i),aeroCoeffTotal(:,locZeroASS,:)))')
         xlabel('Angle of Attack [deg]')
         ylabel('Altitude [km]')
         zlabel([labels{i},' Coefficient [-]'])
@@ -568,6 +582,54 @@ if showFigure
         view([-35,30])
         if saveFigure, saveas(F,['../../Report/figures/aero_3d_',lower(labels{i})],'epsc'), end
     end
+end
+
+%% Plot Aerodynamic Coefficients vs Angle of Side-slip
+
+%...Plot
+if showFigure
+    styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
+    labels = {'Drag','Side','Lift','X-Moment','Y-Moment','Z-Moment'};
+    
+    %...Plot aerodynamic coefficients in 2D for rarefied flow
+    for i = 1:6
+        F = figure('rend','painters','pos',figSizeSmall);
+        hold on
+        for h = 2:length(simAltRarefied) % skip 100 km
+            plot(simAnglesOfSideSlip,cellfun(@(x)x(i),aeroCoeffRarefied(locZeroAOA,:,h)),styles{h},...
+                'LineWidth',1.25,'MarkerSize',10)
+        end
+        hold off
+        xlabel('Angle of Side-slip [deg]')
+        ylabel([labels{i},' Coefficient [-]'])
+        set(gca,'FontSize',15)
+        grid on
+        if i == 1 || i == 5
+            legend(split(num2str(simAltRarefied(2:end))),'NumColumns',2,'Location','Best')
+        else
+            legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
+        end
+        if saveFigure, saveas(F,['../../Report/figures/aero_rare_ass_2d_',lower(labels{i})],'epsc'), end
+    end
+    
+    %...Plot aerodynamic coefficients in 2D for continuum flow
+    F = figure('rend','painters','pos',figSizeSmall);
+    plot(simAnglesOfSideSlip,cellfun(@(x)x(2),aeroCoeffContinuum(locZeroAOA,:,1)),styles{1},'LineWidth',1.25,'MarkerSize',10)
+    xlabel('Angle of Side-slip [deg]')
+    ylabel([labels{2},' Coefficient [-]'])
+    set(gca,'FontSize',15)
+    grid on
+    if saveFigure, saveas(F,'../../Report/figures/aero_cont_ass_2d_force','epsc'), end
+    
+    %...Plot aerodynamic coefficients in 3D for continuum flow
+    F = figure('rend','painters','pos',figSizeSmall);
+    surf(simAnglesOfAttack,simAnglesOfSideSlip,cellfun(@(x)x(5),aeroCoeffContinuum(:,:,1))')
+    xlabel('Angle of Attack [deg]')
+    ylabel('Angle of Side-slip [deg]')
+    zlabel([labels{5},' Coefficient [-]'])
+    set(gca,'FontSize',15)
+    grid on
+    if saveFigure, saveas(F,['../../Report/figures/aero_cont_3d_',lower(labels{5})],'epsc'), end
 end
 
 %% Validation
@@ -584,7 +646,7 @@ if showFigure
     figAxes1 = gca;
     hold on
     rectangle('Position',[1e-10,1.5,2e-7,3],'FaceColor',[0.5,0.5,0.5,0.5],'LineStyle','none','Parent',figAxes1)
-    line(densityValues,cellfun(@(x)x(1),aeroCoeffRarefied(simAnglesOfAttack==0,:)),...
+    line(densityValues,squeeze(cellfun(@(x)x(1),aeroCoeffRarefied(locZeroAOA,locZeroASS,:))),...
         'LineStyle','-','LineWidth',1.25,'Marker','o','MarkerSize',10,'Parent',figAxes1)
     line(densityValues,dragDensity(densityValues),...
         'LineStyle','--','LineWidth',1.25,'Color',[0.85,0.325,0.098],'Parent',figAxes1)
@@ -611,7 +673,7 @@ clear F figAxes1 figAxes2
 
 %...Print percentage offset
 fprintf( ['Offset to validation data:\n',repmat('%.1f\t',[1,length(densityValues)]),'\n'], ...
-    ( cellfun(@(x)x(1),aeroCoeffRarefied(simAnglesOfAttack==0,:)) - dragDensity(densityValues) ) ./ ...
+    ( squeeze(cellfun(@(x)x(1),aeroCoeffRarefied(locZeroAOA,locZeroASS,:)))' - dragDensity(densityValues) ) ./ ...
     dragDensity(densityValues) * 100)
 
 %% Plot Solar Panel Bending Moment
@@ -619,7 +681,7 @@ fprintf( ['Offset to validation data:\n',repmat('%.1f\t',[1,length(densityValues
 if showFigure
     %...Plot bending moment magnitude for rarefied flow
     F = figure('rend','painters','pos',figSizeSmall);
-    plot(simAltRarefied,solarPanelBendingMomentRarefiedMagnitude(find(simAnglesOfAttack==0,1),:),...
+    plot(simAltRarefied,squeeze(solarPanelBendingMomentRarefiedMagnitude(locRareMaxAOA,locRareMaxASS,:)),...
         '-o','LineWidth',1.25,'MarkerSize',10)
     xlabel('Altitude [km]')
     ylabel('Bending Moment [N m]')
@@ -633,10 +695,10 @@ if showFigure
     F = figure('rend','painters','pos',figSizeSmall);
     hold on
     for i = 1:3
-        plot(simAnglesOfAttack,cellfun(@(x)x(i),solarPanelBendingMomentRarefied(:,1)),...
+        plot(simAnglesOfAttack,cellfun(@(x)x(i),solarPanelBendingMomentRarefied(:,locRareMaxASS,1)),...
             styles{i},'LineWidth',1.25,'MarkerSize',10)
     end
-    plot(simAnglesOfAttack,solarPanelBendingMomentRarefiedMagnitude(:,1),...
+    plot(simAnglesOfAttack,solarPanelBendingMomentRarefiedMagnitude(:,locRareMaxASS,1),...
         styles{i+1},'LineWidth',1.25,'MarkerSize',10)
     hold off
     xlabel('Angle of Attack [deg]')
@@ -651,8 +713,8 @@ if showFigure
     F = figure('rend','painters','pos',figSizeSmall);
     hold on
     for i = 1:length(simAltRarefied)
-        plot(simAnglesOfAttack,cellfun(@(x)x(1),solarPanelBendingMomentRarefied(:,i)) ./ ...
-            cellfun(@(x)x(3),solarPanelBendingMomentRarefied(:,i)) * 100,styles{i},'LineWidth',1.25,'MarkerSize',10)
+        plot(simAnglesOfAttack,cellfun(@(x)x(1),solarPanelBendingMomentRarefied(:,locRareMaxASS,i)) ./ ...
+            cellfun(@(x)x(3),solarPanelBendingMomentRarefied(:,locRareMaxASS,i)) * 100,styles{i},'LineWidth',1.25,'MarkerSize',10)
     end
     hold off
     xlabel('Angle of Attack [deg]')
@@ -663,7 +725,7 @@ if showFigure
     
     %...Plot bending moment magnitude for continuum flow
     F = figure('rend','painters','pos',figSizeSmall);
-    plot(simAnglesOfAttack,solarPanelBendingMomentContinuumMagnitude',styles{1},'LineWidth',1.25,'MarkerSize',10)
+    plot(simAnglesOfAttack,solarPanelBendingMomentContinuumMagnitude(:,locContMaxASS),styles{1},'LineWidth',1.25,'MarkerSize',10)
     xlabel('Angle of Attack [deg]')
     ylabel('Bending Moment [N m]')
     set(gca,'FontSize',15)
@@ -679,19 +741,20 @@ Tri.vertices = points;
 Tri.faces = triangles;
 
 %...Condition to show
-a = 1;%find(simAnglesOfAttack==0,1);
+a = length(simAnglesOfAttack);
+b = locRareMaxASS;%find(locZeroASS);
 h = 1;
 
 %...Plot
 if showFigure
     %...Plot triangulation for rarefied flow
     titles = {'Pressure','Friction','Moment','Pressure','','Moment'};
-    color = {sqrt(sum(pressureCoeffRarefied{a,h}.^2,2)),...
-        sqrt(sum(frictionCoeffRarefied{a,h}.^2,2)),...
-        sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,h} + frictionCoeffRarefied{a,h}).^2,2)), ...
-        sqrt(sum(pressureCoeffContinuum{a,1}.^2,2)),...
+    color = {sqrt(sum(pressureCoeffRarefied{a,b,h}.^2,2)),...
+        sqrt(sum(frictionCoeffRarefied{a,b,h}.^2,2)),...
+        sqrt(sum(cross(momentArm,pressureCoeffRarefied{a,b,h} + frictionCoeffRarefied{a,b,h}).^2,2)), ...
+        sqrt(sum(pressureCoeffContinuum{a,b,1}.^2,2)),...
         NaN, ...
-        sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,1}).^2,2))};
+        sqrt(sum(cross(momentArm,pressureCoeffContinuum{a,b,1}).^2,2))};
     F = figure('rend','painters','pos',figSizeLarge);
     for i = 1:length(color)
         if i ~= 5
@@ -704,20 +767,20 @@ if showFigure
             title(titles{i})
         end
     end
-    subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAltRarefied(h)),' km'])
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAnglesOfSideSlip(b)),' deg, ',num2str(simAltRarefied(h)),' km'])
     
     %...Compute pressure and friction coefficients in body frame
-    transformation = roty(simAnglesOfAttack(a));
+    transformation = roty(simAnglesOfAttack(a)) * rotx(-simAnglesOfSideSlip(b));
     pressureCoeffRarefiedInBodyFrame = arrayfun(@(i)transformation * ...
-        pressureCoeffRarefied{a,h}(i,:)',1:size(pressureCoeffRarefied{a,h},1),'UniformOutput',false);
+        pressureCoeffRarefied{a,b,h}(i,:)',1:size(pressureCoeffRarefied{a,b,h},1),'UniformOutput',false);
     frictionCoeffRarefiedInBodyFrame = arrayfun(@(i)transformation * ...
-        frictionCoeffRarefied{a,h}(i,:)',1:size(frictionCoeffRarefied{a,h},1),'UniformOutput',false);
+        frictionCoeffRarefied{a,b,h}(i,:)',1:size(frictionCoeffRarefied{a,b,h},1),'UniformOutput',false);
     pressureCoeffRarefiedInBodyFrame = [pressureCoeffRarefiedInBodyFrame{:}]';
     frictionCoeffRarefiedInBodyFrame = [frictionCoeffRarefiedInBodyFrame{:}]';
     
     %...Plot pressure and shear forces for rarefied flow
     F = figure('rend','painters','pos',figSizeSmall);
-    subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAltRarefied(h)),' km'])
+    subplotTitle([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAnglesOfSideSlip(b)),' deg, ',num2str(simAltRarefied(h)),' km'])
     
     subplot(1,2,1)
     Tri.facevertexcdata = color{1};
@@ -752,8 +815,8 @@ if showFigure
     
     %...Compute total pressure
     totalPressure = pressure(h) * ( transformation' * trianglesNormal' )';
-    totalForce = ( pressureCoeffRarefied{a,h} + totalPressure + ...
-        frictionCoeffRarefied{a,h} ) .* trianglesArea;
+    totalForce = ( pressureCoeffRarefied{a,b,h} + totalPressure + ...
+        frictionCoeffRarefied{a,b,h} ) .* trianglesArea;
     totalForceInBodyFrame = arrayfun(@(i)transformation * ...
         totalForce(i,:)',1:size(totalForce,1),'UniformOutput',false);
     totalForceInBodyFrame = [totalForceInBodyFrame{:}]';
@@ -786,7 +849,7 @@ if showFigure
             saveas(F,['../../Report/figures/force_',figName{i}],'epsc')
         end
     else
-        title([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAltRarefied(h)),' km'])
+        title([num2str(simAnglesOfAttack(a)),' deg, ',num2str(simAnglesOfSideSlip(b)),' deg, ',num2str(simAltRarefied(h)),' km'])
     end
 end
 clear Tri F j c transformation totalPressure totalForce L_bus L_sa L_ant
@@ -798,7 +861,7 @@ Tri.vertices = points;
 Tri.faces = triangles(solarPanelElements.faces,:);
 
 %...Condition to show
-a = 1;%find(simAnglesOfAttack==0,1);
+a = 1;%find(locZeroAOA);
 h = 1;
 
 %...Plot moment coefficients
@@ -901,26 +964,30 @@ end
 %...Save to file
 if saveTable
     %...File names
-    coefficient = {'MRODragCoefficients.txt','','MROLiftCoefficients.txt','','MROMomentCoefficients.txt',''};
+    coefficient = {'MRODragCoefficients.txt','MROSideCoefficients.txt','MROLiftCoefficients.txt',...
+        'MROXMomentCoefficients.txt','MROYMomentCoefficients.txt','MROZMomentCoefficients.txt'};
     
     %...Loop over settings
-    for i = 1:2:6
+    for i = 1:6
         %...Set file name and open
         fileName = ['/Users/Michele/GitHub/tudat/tudatBundle/tudat/Tudat/External/',coefficient{i}];
         fileID = fopen(fileName,'w');
         
         %...Write number of independent variables
-        fprintf(fileID,'%d\n',2);
+        fprintf(fileID,'%d\n',3);
         fprintf(fileID,'\n'); % separator
         
         %...Add independent variables
         fprintf(fileID,[repmat('%.10f\t ',[1,length(simAnglesOfAttack)]),'\n'],deg2rad(simAnglesOfAttack));
+        fprintf(fileID,[repmat('%.10f\t ',[1,length(simAnglesOfSideSlip)]),'\n'],deg2rad(simAnglesOfSideSlip));
         fprintf(fileID,[repmat('%.3f\t ',[1,length(simAltitudes)]),'\n'],simAltitudes*1e3);
         fprintf(fileID,'\n'); % separator
         
         %...Add coefficients
-        for j = 1:length(simAnglesOfAttack)
-            fprintf(fileID,[repmat('%.6f\t ',[1,length(simAltitudes)]),'\n'],cellfun(@(x)x(i),aeroCoefficients(j,:)));
+        for h = 1:length(simAltitudes)
+            fprintf(fileID,[repmat('%.6f\t ',[1,length(simAnglesOfSideSlip)]),'\n'],...
+                squeeze(cellfun(@(x)x(i),aeroCoefficients(:,:,h))));
+            fprintf(fileID,'\n');
         end
         
         %...Close file
@@ -928,7 +995,19 @@ if saveTable
     end
 end
 
-%% Close All Figures
+%...Get single coefficients
+dragCoefficients = cellfun(@(x)x(1),aeroCoeffRarefied);
+sideCoefficients = cellfun(@(x)x(2),aeroCoeffRarefied);
+liftCoefficients = cellfun(@(x)x(3),aeroCoeffRarefied);
+xMomentCoefficients = cellfun(@(x)x(4),aeroCoeffRarefied);
+yMomentCoefficients = cellfun(@(x)x(5),aeroCoeffRarefied);
+zMomentCoefficients = cellfun(@(x)x(6),aeroCoeffRarefied);
+
+%...Save results to mat file
+save('data/aero','simAnglesOfAttack','simAnglesOfSideSlip','simAltRarefied','MachNumber','dragCoefficients','sideCoefficients',...
+    'liftCoefficients','xMomentCoefficients','yMomentCoefficients','zMomentCoefficients')
+
+%% Clean Up
 
 if saveFigure, close all, end
 

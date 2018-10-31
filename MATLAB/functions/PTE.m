@@ -27,6 +27,9 @@ b0 = find(max(aero)==aero)+100;
 c = areaBisection(time,aero,a0,b0);
 tp = time(c);
 dtheta = rad2deg(kepl(c,6));
+if dtheta > 180
+    dtheta = 360 - dtheta;
+end
 
 %...Finish plotting
 plot([time(c),time(c)],ylim,'LineWidth',2,'LineStyle',':')

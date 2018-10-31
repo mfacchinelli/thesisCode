@@ -31,11 +31,11 @@ switch testCase
         repository = fullfile(repository,'aero');
     case 1 % full aerobraking
         R = 3.396e3;
-        simulationDuration = 140.0;
+        simulationDuration = 135.0;
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 250;
-        constantStepSizes = [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0];
+        constantStepSizes = [1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0];
         repository = fullfile(repository,'aero_full');
     case 2 % interplanetary trajectory
         R = 695.508e3;
@@ -43,7 +43,7 @@ switch testCase
         scaling = 24*3600;
         timeLabel = 'Time [day]';
         timeStepSeconds = 350;
-        constantStepSizes = [50.0, 100.0, 200.0, 400.0, 800.0, 1200.0, 1500.0];
+        constantStepSizes = [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0, 500.0];
         repository = fullfile(repository,'inter');
     case 3 % circular orbit
         R = 6378.1363;
@@ -76,9 +76,9 @@ standardFunctionEvals = [8,13;4,0]; % [RK5(6),RK7(8);RK4,-]
 
 %...Labels
 keplerLabels = {'Semi-major Axis [km]','Eccentricity [-]','Inclination [deg]',...
-    'Right Ascension of Ascending Node [deg]','Argument of Perigee [deg]','True Anomaly [deg]'};
+    'Argument of Perigee [deg]','Right Ascension of Ascending Node [deg]','True Anomaly [deg]'};
 keplerDiffLabels = {'\Delta a [km]','\Delta e [-]','\Delta i [deg]',...
-    '\Delta\Omega [deg]','\Delta\omega [deg]','\Delta\vartheta [deg]'};
+    '\Delta\omega [deg]','\Delta\Omega [deg]','\Delta\vartheta [deg]'};
 cartDiffLabels = {'\Delta x [km]','\Delta y [km]','\Delta z [km]','\Delta r [km]',...
     '\Delta v_x [km/s]','\Delta v_y [km/s]','\Delta v_z [km/s]','\Delta v [km/s]'};
 usm7Labels = {'C Hodograph [km/s]','R_1 Hodograph [km/s]','R_2 Hodograph [km/s]',...
@@ -170,7 +170,6 @@ for j = 1:length(integrators)
                     set(gca,'FontSize',15,'YScale','log')
                     title(propagatorNames{i})
                 end
-                
 %                 if i == length(propagators), repository = repository_old; end % <<<<<<<------ USMEM as reference
             end
         end
@@ -198,14 +197,14 @@ end
 %% Computation Times
 
 %...Settings
-numberOfConstantSteps = [9,10,7,8,10,10];
 numberOfVariableSteps = 7;
 fullConstantStepSizes = {[1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0],...
-    [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0],...
-    [50.0, 100.0, 200.0, 400.0, 800.0, 1200.0, 1500.0],...
+    [1.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 150.0],...
+    [10.0, 25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0, 500.0],...
     [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0],...
     [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0],...
     [20.0, 30.0, 40.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0, 300.0]};
+numberOfConstantSteps = cellfun(@length,fullConstantStepSizes);
 
 %...Open file
 filename = fullfile(fullfile(TudatApplicationOutput,'Propagators'),'computationTimes.dat');
@@ -467,6 +466,9 @@ xlabel('Computation Time [s]')
 ylabel('RMS Position Error [m]')
 legend(propagatorNames(1:end-1),'Location','Best')
 set(gca,'FontSize',15,'YScale','log')
+if testCase == 2
+    set(gca,'XScale','log')
+end
 grid on
 if saveFigure, saveas(F,['../../Report/figures/rms_const_time_',num2str(testCase)],'epsc'), end
 

@@ -46,7 +46,7 @@ cd ~/tudatBundle/build; make application_spartaTest -j 14; cd ~/tudatBundle/tuda
 cd ~/tudatBundle/build; time make application_Thesis -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_Thesis
 cd ~/tudatBundle/build; time make application_ThesisTransOnly -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnly
 cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMAN -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMAN
-cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANRMS -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANRMS
+cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANRMS -j 8; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANRMS
 cd ~/tudatBundle/build; time make application_ThesisTransOnlyIMANLoop -j 14; cd ~/tudatBundle/tudatApplications/bin/applications; time ./application_ThesisTransOnlyIMANLoop
 
 cd ~/tudatBundle/build; make test_ExtendedKalmanFilter -j 14; cd ~/tudatBundle/tudat/bin/unit_tests; ./test_ExtendedKalmanFilter
@@ -55,7 +55,7 @@ cd ~/tudatBundle/build; make test_UnscentedKalmanFilter -j 14; cd ~/tudatBundle/
 ##########################################################################################
 ### Run Example Sphere
 
-cd /Users/Michele/Software/SPARTA/examples/sphere; mpirun -n 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
+cd /Users/Michele/Software/sparta/examples/sphere; mpirun -n 2 /Users/Michele/Software/sparta/src/spa_mac_mpi -in in.sphere; convert image.* movie.gif; rm image.*
 
 ##########################################################################################
 ### Run MRO
@@ -64,16 +64,16 @@ cd /Users/Michele/Software/SPARTA/examples/sphere; mpirun -n 2 /Users/Michele/So
 cd /Users/Michele/Library/Mobile\ Documents/com~apple~CloudDocs/University/Master\ Thesis/Code/SPARTA/mro/
 
 #--- RUN MRO WITH SINGLE PROCESS ---#
-/Users/Michele/Software/SPARTA/src/spa_mac_mpi < in.mro
+/Users/Michele/Software/sparta/src/spa_mac_mpi < in.mro
 
 #--- RUN MRO WITH MPI FOR MULTI-PROCESS COMPUTATION ---#
-mpirun -np 2 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro
+mpirun --hostfile hostfile -np 6 /Users/Michele/Software/sparta/src/spa_mac_mpi -in in.mro
 
 #--- RUN MRO WITH MPI AND IMAGEMAGICK ---#
-mpirun --hostfile hostfile -np 4 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*
+mpirun --hostfile hostfile -np 6 /Users/Michele/Software/sparta/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*
 
 #--- RUN MRO WITH MPI AND IMAGEMAGICK AND OPEN LOG ---#
-mpirun --hostfile hostfile -np 4 /Users/Michele/Software/SPARTA/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*; open log.sparta -a textedit
+mpirun --hostfile hostfile -np 4 /Users/Michele/Software/sparta/src/spa_mac_mpi -in in.mro; convert figures/image.* movie.gif; rm figures/image.*; open log.sparta -a textedit
 
 ##########################################################################################
 ### ImageMagick Toolkit

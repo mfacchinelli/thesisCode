@@ -26,8 +26,11 @@ mixture atm %s temp %.1f # gas names
 # START LOOP OVER ANGLE OF ATTACK
 variable alpha index %s
 
+# START LOOP OVER ANGLE OF SIDE-SLIP
+variable beta index %s
+
 # READ MRO DATA FROM FILE
-read_surf data.mro rotate ${alpha} 0 -1 0
+read_surf data.mro rotate ${alpha} 0 -1 0 rotate ${beta} 0 0 1
 group mro surf type 1
 
 # CREATE COLLISION MODEL BASED ON VSS
@@ -43,13 +46,13 @@ timestep %f
 # COMPUTE NORMAL PRESSURE AND SHEAR STRESS
 compute 1 surf mro atm px py pz shx shy shz
 fix 1 ave/surf mro 10 20 200 c_1[*]
-dump 1 surf mro 200 %s/${alpha}.coeff.* id f_1[*]
+dump 1 surf mro 200 %s/${beta}/${alpha}.coeff.* id f_1[*]
 
 # SAVE FIGURES
 compute 2 surf mro atm press
 fix save ave/surf mro 3 50 150 c_2[*] ave running
 region slab block INF INF -0.5 0.5 INF INF
-dump 2 image all 150 %s/${alpha}.image.* type type pdiam 0.03 view 70 50 size 512 512 axes yes 0.9 0.02 gridz -0.8 proc gline yes 0.005 surf f_save 0.0
+dump 2 image all 150 %s/${beta}/${alpha}.image.* type type pdiam 0.03 view 70 50 size 512 512 axes yes 0.9 0.02 gridz -0.8 proc gline yes 0.005 surf f_save 0.0
 dump_modify 2 pad 4 region slab
 dump_modify 2 cmap surf min max cf 0.0 2 min blue max red
 
@@ -59,6 +62,11 @@ stats_style step cpu np nattempt ncoll nscoll nscheck
 
 # RUN SIMULATION
 run %d
+
+# CLOSE ANGLE OF SIDE-SLIP LOOP
+clear
+next beta
+jump in.mro
 
 # CLOSE ANGLE OF ATTACK LOOP
 clear

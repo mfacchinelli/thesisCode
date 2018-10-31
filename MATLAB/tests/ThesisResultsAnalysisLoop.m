@@ -17,11 +17,11 @@ timeLabel = 'Time [d]';
 CartesianLabels = {'x [km]','y [km]','z [km]','v_x [m s^{-1}]','v_y [m s^{-1}]','v_z [m s^{-1}]'};
 CartesianLabelsDifference = {'\Delta x [km]','\Delta y [km]','\Delta z [km]',...
     '\Delta v_x [m s^{-1}]','\Delta v_y [m s^{-1}]','\Delta v_z [m s^{-1}]'};
-KeplerianLabels = {'a [km]','e [-]','i [deg]','\Omega [deg]','\omega [deg]','\vartheta [deg]'};
+KeplerianLabels = {'a [km]','e [-]','i [deg]','\omega [deg]','\Omega [deg]','\vartheta [deg]'};
 rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]','Norm Offset [-]',...
     '\omega_1 [deg s^{-1}]','\omega_2 [deg s^{-1}]','\omega_3 [deg s^{-1}]'};
 
-ps = 0:2;
+ps = -1:3;
 vs = -3:0;
 ms = -1:2;
 
@@ -99,17 +99,17 @@ for p = ps
             %% Interpolate Results to Match Times
             
             %...Set interpolation time
-            interpolatedTime = simulationTime;
+            interpolatedTime = onboardTime(1:end-1);
             
             %...Interpolate
             if applyInterpolation
                 %...Interpolate propagation results
-                CartesianPropagatedResults = interp1( simulationTime, CartesianPropagatedResults, interpolatedTime, 'spline' );
-                KeplerianPropagatedResults = interp1( simulationTime, KeplerianPropagatedResults, interpolatedTime, 'spline' );
+                CartesianPropagatedResults = interp1( simulationTime, CartesianPropagatedResults, interpolatedTime, 'linear' );
+                KeplerianPropagatedResults = interp1( simulationTime, KeplerianPropagatedResults, interpolatedTime, 'linear' );
                 
                 %...Interpolate estimation results
-                CartesianEstimatedResults = interp1( onboardTime, CartesianEstimatedResults, interpolatedTime, 'spline' );
-                KeplerianEstimatedResults = interp1( onboardTime, KeplerianEstimatedResults, interpolatedTime, 'spline' );
+                CartesianEstimatedResults = interp1( onboardTime, CartesianEstimatedResults, interpolatedTime, 'linear' );
+                KeplerianEstimatedResults = interp1( onboardTime, KeplerianEstimatedResults, interpolatedTime, 'linear' );
             end
             
             %% RMS Error
