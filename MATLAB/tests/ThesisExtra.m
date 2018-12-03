@@ -1,6 +1,8 @@
 fclose('all'); clear all; close all force; profile off; clc; format long g; rng default;
 addpath functions
 
+%% Load Settings
+
 %...Figure settings
 showFigure = true;
 saveFigure = false;
@@ -17,11 +19,13 @@ maxHeatRate = 2800 / 2;
 maxHeatLoad = 500 / 2;
 
 %...Settings
-loadPTE = true;
-loadAE = true;
-loadME = true;
-loadPS = true;
-loadMC = true;
+loadSE = false;
+loadPTE = false;
+loadAE = false; analyzeAE = false;
+loadCE = true;
+loadME = false;
+loadPS = false;
+loadMC = false;
 
 timeLabel = 'Time [d]';
 KeplerianLabels = {'a [km]','e [-]','i [deg]','\omega [deg]','\Omega [deg]','\vartheta [deg]'};
@@ -29,6 +33,19 @@ KeplerianLabels = {'a [km]','e [-]','i [deg]','\omega [deg]','\Omega [deg]','\va
 output = '/Users/Michele/GitHub/tudat/tudatBundle/tudat/bin/unit_tests/TestingResults/';
 
 %% Read Data
+
+if loadSE
+    %...Retrieve heating conditions
+    [seIndependentVariables,seActualPeriapsisAltitude] = readNdData([output,'nsSeActualAltitude.dat']);
+    [~,seEstimatedPeriapsisAltitude] = readNdData([output,'nsSeEstimatedAltitude.dat']);
+    [~,seActualPeriapsisVelocity] = readNdData([output,'nsSeActualVelocity.dat']);
+    [~,seEstimatedPeriapsisVelocity] = readNdData([output,'nsSeEstimatedVelocity.dat']);
+    
+    tudatFinalResults = [
+        25332737.89675949  0.861926305898876  1.622056865950883 0.7585964017055694  2.770620451793496  3.127166166577585;...
+        5261777.312011558 0.3355482918202455  1.621715801765723 0.7618379766282369  2.772196722637427  4.596719846297388;...
+        4688721.444252419 0.2522372951469407  1.621712937613266 0.7569387334691682  2.772020755784878  3.175554343496243];
+end
 
 if loadAE
     %...Retrieve altitude
@@ -63,6 +80,21 @@ if loadAE
     KeplerianActualResultsPlot = KeplerianActualResults;
     KeplerianActualResultsPlot(:,1) = KeplerianActualResults(:,1) / 1e3;
     KeplerianActualResultsPlot(:,3:end) = rad2deg(KeplerianActualResults(:,3:end));
+    
+    %...Retrieve densities
+    filename = [output,'nsAeDensity_0.dat'];
+    fileID = fopen(filename,'r');
+    orbitData = textscan(fileID,repmat('%f ',[1,4]),'Delimiter',',','CollectOutput',true);
+    aeTime1 = orbitData{1}(:,1); aeTime1 = aeTime1-aeTime1(1);
+    aeAltitudes1 = orbitData{1}(:,2); aeDensities1 = orbitData{1}(:,3:end);
+    fclose(fileID);
+    
+    filename = [output,'nsAeDensity_2.dat'];
+    fileID = fopen(filename,'r');
+    orbitData = textscan(fileID,repmat('%f ',[1,4]),'Delimiter',',','CollectOutput',true);
+    aeTime2 = orbitData{1}(:,1); aeTime2 = aeTime2-aeTime2(1);
+    aeAltitudes2 = orbitData{1}(:,2); aeDensities2 = orbitData{1}(:,3:end);
+    fclose(fileID);
 end
 
 if loadPTE    
@@ -85,6 +117,24 @@ if loadPTE
     pteAcceleration = textscan(fileID,'%f','Delimiter',',','CollectOutput',true);
     pteAcceleration = pteAcceleration{1};
     fclose(fileID);
+end
+
+if loadCE
+    %...Retrieve heating conditions
+    [ceIndependentVariables,cePeakDynPress] = readNdData([output,'gsCePeakDynPress.dat']);
+    [~,cePeakDynPressEst] = readNdData([output,'gsCePeakDynPressEst.dat']);
+    [~,cePeakHeatRate] = readNdData([output,'gsCePeakHeatRate.dat']);
+    [~,cePeakHeatRateEst] = readNdData([output,'gsCePeakHeatRateEst.dat']);
+    [~,ceHeatLoad] = readNdData([output,'gsCeHeatLoad.dat']);
+    [~,ceHeatLoadEst] = readNdData([output,'gsCeHeatLoadEst.dat']);
+    
+    %...Retrieve orbit conditions
+    [~,ceTargetPeriapsis] = readNdData([output,'gsCeTargetPeriapsis.dat']);
+    [~,ceActualPeriapsis] = readNdData([output,'gsCeActualPeriapsis.dat']);
+    
+    %...w/ and w/o improvement
+    idealScenario = [135.522,134.661,134.938;113.818,113.867,113.742;114.873,114.834,114.917];
+    perturbedScenario = [135.599,132.043,131.97;113.818,113.235,113.162;114.873,114.267,114.35];
 end
 
 if loadME
@@ -129,8 +179,10 @@ if loadMC
 end
     
 if loadPTE && loadAE
+%     save('data/vv_1','pteTime','pteKeplerianEstimatedResultsPlot')
+    
     %...Plot Keplerian translational motion
-    figure
+    F = figure('rend','painters','pos',figSizeSmall);
     for i = 1:size(KeplerianActualResults,2)
         subplot(2,3,i)
         hold on
@@ -143,6 +195,21 @@ if loadPTE && loadAE
         grid on
     end
     subplotLegend({'Actual','Estimated'})
+end
+
+%% Check State Estimation
+
+if loadSE
+    clc
+    
+    offsetAltitude = ( seEstimatedPeriapsisAltitude - seActualPeriapsisAltitude ) ./ seActualPeriapsisAltitude * 100;
+    offsetVelocity = ( seEstimatedPeriapsisVelocity - seActualPeriapsisVelocity ) ./ seActualPeriapsisVelocity * 100;
+    
+    fprintf('\\textit{%d} & %.1f & %.3f & %.3f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;seActualPeriapsisAltitude(2,:,1)/1e3;squeeze(offsetAltitude(2,:,:))'])
+    disp(newline)
+    fprintf('\\textit{%d} & %.3f & %.3f & %.3f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;seActualPeriapsisVelocity(2,:,1)/1e3;squeeze(offsetVelocity(2,:,:))'])
 end
 
 %% Run PTE
@@ -171,11 +238,68 @@ if loadPTE
     grid on
 end
 
+%% Plot AE Data
+
+if loadAE
+    ft = fittype('rho0 + altitude / H',...
+        'independent',{'altitude'},...
+        'dependent',{'rho'},...
+        'coefficients',{'rho0','H'});
+    [lsq1,G1,O1] = fit(( min(aeAltitudes1) - aeAltitudes1 ),log(aeDensities1(:,2)),ft,...
+        'StartPoint',[log(2.42386294453635e-08),6532.91178699257],'Robust','LAR','Algorithm','Trust-Region');
+    matlabDensityFunction1 = @(h) exp(lsq1.rho0) * exp( h / lsq1.H );
+    
+    %...MATLAB least squares
+    ft = fittype('rho0 + K1 * altitude / H + K2 * cos( 2 * pi * altitude / H ) + K3 * sin( 2 * pi * altitude / H )',...
+        'independent',{'altitude'},...
+        'dependent',{'rho'},...
+        'coefficients',{'rho0','H','K1','K2','K3'});
+    [lsq2,G2,O2] = fit(( min(aeAltitudes2) - aeAltitudes2 ),log(aeDensities2(:,2)),ft,...
+        'StartPoint',[log(2.42386294453635e-08),6532.91178699257,-1,0,0],'Robust','LAR','Algorithm','Trust-Region');
+    matlabDensityFunction2 = @(h) exp(lsq2.rho0) * exp( lsq2.K1 * h / lsq2.H + lsq2.K2 * cos( 2*pi*h/lsq2.H ) + ...
+        lsq2.K3 * sin( 2*pi*h/lsq2.H ) );
+    
+%     locAlt = 1:find(aeAltitudes1==min(aeAltitudes1));
+%     aeAltitudes1(locAlt) = [];
+%     aeDensities1(locAlt,:) = [];
+%     estimatedDensity(locAlt) = [];
+    
+    %...Exponential model
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    scatter(estimatedDensity(1:end-1),aeAltitudes1/1e3,50,'LineWidth',0.25)
+    plot(aeDensities1(:,1),aeAltitudes1/1e3,'LineWidth',1.5)
+    plot(aeDensities1(:,2),aeAltitudes1/1e3,'LineWidth',1.5,'LineStyle','--')
+    plot(matlabDensityFunction1(min(aeAltitudes1) - aeAltitudes1),aeAltitudes1/1e3,'LineWidth',1.5,'LineStyle','-.')
+    hold off
+    xlabel('Density [kg m^{-3}]')
+    ylabel('Altitude [km]')
+    grid on
+    legend('Measured','Actual','Estimated','MATLAB')
+    set(gca,'FontSize',15,'XScale','log')
+    if saveFigure, saveas(F,'../../Report/figures/vv_ae_exp','epsc'), end
+    
+    %...5-parameter model
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    scatter(estimatedDensity(1:end-1),aeAltitudes2/1e3,50,'LineWidth',0.25)
+    plot(aeDensities2(:,1),aeAltitudes2/1e3,'LineWidth',1.5)
+    plot(aeDensities2(:,2),aeAltitudes2/1e3,'LineWidth',1.5,'LineStyle','--')
+    plot(matlabDensityFunction2(min(aeAltitudes2) - aeAltitudes2),aeAltitudes2/1e3,'LineWidth',1.5,'LineStyle','-.')
+    hold off
+    xlabel('Density [kg m^{-3}]')
+    ylabel('Altitude [km]')
+    grid on
+    legend('Measured','Actual','Estimated','MATLAB')
+    set(gca,'FontSize',15,'XScale','log')
+    if saveFigure, saveas(F,'../../Report/figures/	','epsc'), end
+end
+
 %% Fit Atmospheric Data
 
 clc
 
-if loadAE
+if loadAE && analyzeAE
     %...Find pericenter height
     pericenter = min( estimatedAltitude );
     
@@ -224,7 +348,7 @@ end
 
 %% Fit Other Model
 
-if loadAE
+if loadAE && analyzeAE
     clc
     
     %...Initial values
@@ -248,10 +372,10 @@ if loadAE
             lambda = tau * max(diag(A'*A));
         end
         
-        offset = ( log( atmosphericDensity ) - estDens );
-        dx = (A'*A + lambda * eye(5,5)) \ A' * offset;
+        offsetAltitude = ( log( atmosphericDensity ) - estDens );
+        dx = (A'*A + lambda * eye(5,5)) \ A' * offsetAltitude;
         
-        rho = ( lsqFunc(x)'*lsqFunc(x) - lsqFunc(x+dx)'*lsqFunc(x+dx) ) / ( dx' * ( lambda * dx - A' * offset ) );
+        rho = ( lsqFunc(x)'*lsqFunc(x) - lsqFunc(x+dx)'*lsqFunc(x+dx) ) / ( dx' * ( lambda * dx - A' * offsetAltitude ) );
         if rho > 0
             lambda = lambda * max( 1/3, 1-(2*rho-1)^3 );
             nu = 2;
@@ -303,41 +427,36 @@ if loadAE
     legend('Measured','Own','MATLAB')%,'C++')
 end
 
-%% Plot Periapsis Sensitivity
+%% Plot Corridor Estimator
 
-if loadPS
-    styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
-    altitudeOffset = 1.5 * psIndependentVariables{3};
+if loadCE
+    clc
     
-    %...Plot heat rate
-    F = figure('rend','painters','pos',figSizeSmall);
-    hold on
-    for i = 1:length(psIndependentVariables{1})
-        plot(altitudeOffset,squeeze(psPeakHeatRate(i,2,:))-maxHeatRate,styles{i},'LineWidth',1.25,'MarkerSize',10)
-    end
-    plot(xlim,[0,0],'LineWidth',1.25,'LineStyle','--')
-    hold off
-    xlabel('Altitude Offset [km]')
-    ylabel('Offset in Heat Rate [W m^{-2}]')
-    set(gca,'FontSize',15)
-    grid on
-    legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
-    if saveFigure, saveas(F,'../../../Report/figures/sens_heat_rate','epsc'), end
+    offsetDynamicPressure = ( cePeakDynPressEst - cePeakDynPress ) ./ cePeakDynPress * 100;
+    offsetHeatRate = ( cePeakHeatRateEst - cePeakHeatRate ) ./ cePeakHeatRate * 100;
+    offsetHeatLoad = ( ceHeatLoadEst - ceHeatLoad ) ./ ceHeatLoad * 100;
     
-    %...Plot heat load
-    F = figure('rend','painters','pos',figSizeSmall);
-    hold on
-    for i = 1:length(psIndependentVariables{1})
-        plot(altitudeOffset,squeeze(psHeatLoad(i,2,:))/1e3-maxHeatLoad,styles{i},'LineWidth',1.25,'MarkerSize',10)
-    end
-    plot(xlim,[0,0],'LineWidth',1.25,'LineStyle','--')
-    hold off
-    xlabel('Altitude Offset [km]')
-    ylabel('Offset in Heat Load [kJ m^{-2}]')
-    set(gca,'FontSize',15)
-    grid on
-    legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
-    if saveFigure, saveas(F,'../../../Report/figures/sens_heat_load','epsc'), end
+    fprintf('\\textit{%d} & %.3f & %.1f & %.1f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;cePeakDynPress(:,1)';cePeakHeatRate(:,1)';ceHeatLoad(:,1)'/1e3])
+    disp(newline)
+    fprintf('\\textit{%d} & %.3f & %.1f & %.1f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;cePeakDynPress(:,2)';cePeakHeatRate(:,2)';ceHeatLoad(:,2)'/1e3])
+    
+    disp(newline)
+    fprintf('\\textit{%d} & %.3f & %.1f & %.1f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;cePeakDynPressEst(:,1)';cePeakHeatRateEst(:,1)';ceHeatLoadEst(:,1)'/1e3])
+    disp(newline)
+    fprintf('\\textit{%d} & %.3f & %.1f & %.1f \\\\\n\\cmidrule{2-4}\n',...
+        [1:3;cePeakDynPressEst(:,2)';cePeakHeatRateEst(:,2)';ceHeatLoadEst(:,2)'/1e3])
+    
+    disp(newline)
+    idealWithError = ( idealScenario(:,2) - idealScenario(:,1) ) ./ idealScenario(:,1) * 100;
+    idealWithoutError = ( idealScenario(:,3) - idealScenario(:,1) ) ./ idealScenario(:,1) * 100;
+    perturbedWithError = ( perturbedScenario(:,2) - perturbedScenario(:,1) ) ./ perturbedScenario(:,1);
+    perturbedWithoutError = ( perturbedScenario(:,3) - perturbedScenario(:,1) ) ./ perturbedScenario(:,1);
+    
+    ( abs(idealWithError) - abs(idealWithoutError) ) ./ abs(idealWithoutError) * 100
+    ( abs(perturbedWithError) - abs(perturbedWithoutError) ) ./ abs(perturbedWithoutError) * 100
 end
 
 %% Plot Maneuver Sensitivity
@@ -359,7 +478,7 @@ if loadME
     set(gca,'FontSize',15)
     grid on
     legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
-    if saveFigure, saveas(F,'../../../Report/figures/sens_heat_rate','epsc'), end
+    if saveFigure, saveas(F,'../../Report/figures/sens_heat_rate','epsc'), end
     
     %...Plot heat load
     F = figure('rend','painters','pos',figSizeSmall);
@@ -374,7 +493,7 @@ if loadME
     set(gca,'FontSize',15)
     grid on
     legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
-    if saveFigure, saveas(F,'../../../Report/figures/sens_heat_load','epsc'), end
+    if saveFigure, saveas(F,'../../Report/figures/sens_heat_load','epsc'), end
 end
 
 if loadPS
@@ -391,7 +510,44 @@ if loadPS
     set(gca,'FontSize',15)
     grid on
     legend('Walk-in','Main','Walk-out','Location','Best')
-    if saveFigure, saveas(F,'../../../Report/figures/sens_maneuver','epsc'), end
+    if saveFigure, saveas(F,'../../Report/figures/sens_maneuver','epsc'), end
+end
+
+%% Plot Periapsis Sensitivity
+
+if loadPS
+    styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
+    altitudeOffset = 1.5 * psIndependentVariables{3};
+    
+    %...Plot heat rate
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    for i = 1:length(psIndependentVariables{1})
+        plot(altitudeOffset,squeeze(psPeakHeatRate(i,2,:))-maxHeatRate,styles{i},'LineWidth',1.25,'MarkerSize',10)
+    end
+    plot(xlim,[0,0],'LineWidth',1.25,'LineStyle','--')
+    hold off
+    xlabel('Altitude Offset [km]')
+    ylabel('Offset in Heat Rate [W m^{-2}]')
+    set(gca,'FontSize',15)
+    grid on
+    legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
+    if saveFigure, saveas(F,'../../Report/figures/sens_heat_rate','epsc'), end
+    
+    %...Plot heat load
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    for i = 1:length(psIndependentVariables{1})
+        plot(altitudeOffset,squeeze(psHeatLoad(i,2,:))/1e3-maxHeatLoad,styles{i},'LineWidth',1.25,'MarkerSize',10)
+    end
+    plot(xlim,[0,0],'LineWidth',1.25,'LineStyle','--')
+    hold off
+    xlabel('Altitude Offset [km]')
+    ylabel('Offset in Heat Load [kJ m^{-2}]')
+    set(gca,'FontSize',15)
+    grid on
+    legend('Walk-in','Main','Walk-out','Threshold','Location','NE')
+    if saveFigure, saveas(F,'../../Report/figures/sens_heat_load','epsc'), end
 end
 
 %% Plot Monte Carlo
@@ -414,7 +570,7 @@ if loadMC
     set(gca,'FontSize',15)
     grid on
     legend('Init. Cond. 1','Init. Cond. 2','Init. Cond. 3','Location','SE')
-    if saveFigure, saveas(F,'../../../Report/figures/mc_heat','epsc'), end
+    if saveFigure, saveas(F,'../../Report/figures/mc_heat','epsc'), end
 end
 
 %%
@@ -658,3 +814,31 @@ set(gca,'FontSize',15)
 legend('Ratio','Linear Fit','Location','Best')
 grid on
 if saveFigure, saveas(F,'../../Report/figures/guid_altitude_ratio','epsc'), end
+
+%% Periapsis Targeting
+
+hrOffset = NaN(1,209);
+
+for nOrbit = 1:length(hrOffset)
+    locOrbit = locActualPeriapses(nOrbit);
+    
+    KEp = KeplerianPropagatedResults(locOrbit,:);
+    KEa = KeplerianPropagatedResults(locActualApoapses(nOrbit),:);
+    a = KEp(1); e = KEp(2); rp = a*(1-e^2)/(1+e*cosd(KEp(6))); ra = KEa(1)*(1-KEa(2)^2)/(1+KEa(2)*cosd(KEa(6)));
+    
+    rho = maximumDensityPerOrbit(nOrbit);
+    V = sqrt( marsGravitationalParameter / 1e9 * ( 2/rp - 1/a ) ) * 1e3;% + 7.07763225880808e-05 * rp * 1e3;
+    heatRate = 0.5 * rho * V^3;
+    
+    rho_off = rho - 2/100 * rho;
+    rp_off = rp + 1; a_off = ( rp_off + ra ) / 2;
+    V_off = sqrt( marsGravitationalParameter / 1e9 * ( 2/rp_off - 1/a_off ) ) * 1e3;% + 7.07763225880808e-05 * rp_off * 1e3;
+    heatRate_off = 0.5 * rho_off * V_off^3;
+    
+    if heatRate > 2800
+        offsetAltitude = ( heatRate_off - heatRate ) / heatRate * 100;
+        hrOffset(nOrbit) = offsetAltitude;
+    end
+end
+
+scatter(1:length(hrOffset),hrOffset)

@@ -5,6 +5,7 @@ addpath functions tests
 
 %...Figure settings
 showFigure = false;
+showAllFigures = false;
 saveFigure = false;
 [figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
 
@@ -29,7 +30,7 @@ rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]',
     '\omega_1 [deg s^{-1}]','\omega_2 [deg s^{-1}]','\omega_3 [deg s^{-1}]'};
 
 %...Main output folder
-extension = 'low_ecc/';
+extension = 'high_ecc/';
 mainOutputFolder = ['SimulationOutputTransOnlyIMANRMS/',extension];
 
 %% Loop Over Each Settings
@@ -158,7 +159,7 @@ for simulation = simulations
         %% Plot 3D Orbit
         
         %...Plot trajectory
-        if showFigure
+        if showAllFigures
             F = figure('rend','painters','pos',figSizeLarge);
             hold on
             plot3(CartesianPropagatedResults(:,1),CartesianPropagatedResults(:,2),CartesianPropagatedResults(:,3),'LineWidth',1.5)
@@ -184,7 +185,7 @@ for simulation = simulations
         
         %% Plot States Over Time
         
-        if showFigure
+        if showAllFigures
             %...Plot Cartesian translational motion
             F = figure('rend','painters','pos',figSizeLarge);
             for i = 1:size(CartesianPropagatedResults,2)
@@ -270,6 +271,18 @@ for simulation = simulations
                 set(gca,'FontSize',15)
                 grid on
             end
+            
+            %...Plot drag coefficient
+            actual = 1.9;
+            F = figure('rend','painters','pos',figSizeLarge);
+            hold on
+            plot(interpolatedTime,filterStateEstimatedResults(:,10)-actual,'LineWidth',1.25)
+            plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,10)),'LineWidth',1.25,'LineStyle','--')
+            plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,10)),'LineWidth',1.25,'LineStyle','--')
+            hold off
+            xlabel(timeLabel)
+            set(gca,'FontSize',15)
+            grid on
         end
         
         %% Store Results
@@ -325,7 +338,7 @@ rates = 2000 ./ ratios;
 fprintf(['& ',repmat('{%d} & ',[1,length(simulations)-1]),'{%d} \\\\\n'],1:length(simulations))
 fprintf('\\midrule\n')
 if strcmp(extension,'high_ecc/')
-    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.1f & %.0f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
+    fprintf('\\num{%d} & %.3f & %.2f & %.1f & %.1f & %.1f & %.1f & %.2f & %.2f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
 elseif strcmp(extension,'low_ecc/')
-    fprintf('\\num{%d} & %.3f & %.1f & %.1f & %.1f & %.1f & %.2f & %.1f & %.1f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
+    fprintf('\\num{%d} & %.3f & %.2f & %.3f & %.2f & %.2f & %.2f & %.2f & %.2f \\\\\n',[rates',cellfun(@(x)x(1),rmsErrors)']')
 end

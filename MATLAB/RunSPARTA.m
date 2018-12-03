@@ -22,7 +22,7 @@ end
 %...Figures and tables setting
 saveTable = false;
 showFigure = true;
-saveFigure = false;
+saveFigure = true;
 [figSizeLarge,~,figSizeSmall] = saveFigureSettings(saveFigure);
 
 %...Host file settings
@@ -464,7 +464,7 @@ locZeroASS = simAnglesOfSideSlip == 0;
 %...Plot
 if showFigure
     styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
-    labels = {'Drag','Side','Lift','X-Moment','Y-Moment','Z-Moment'};
+    labels = {'Drag','Side','Lift','Roll Moment','Pitch Moment','Yaw Moment'};
     if ~saveFigure
         %...Plot aerodynamic coefficients in 2D for rarefied and continuum flows
         for i = 1:6
@@ -478,7 +478,7 @@ if showFigure
             ylabel([labels{i},' Coefficient [-]'])
             set(gca,'FontSize',15)
             grid on
-            legend(split(num2str(simAltitudes)),'Location','Best')
+            legend(cellfun(@(x)['h = ',x,' km'],split(num2str(simAltitudes)),'UniformOutput',false),'Location','Best')
         end
         
         %...Plot drag polar
@@ -493,7 +493,7 @@ if showFigure
         ylabel('Drag Coefficient [-]')
         set(gca,'FontSize',15)
         grid on
-        legend(split(num2str(simAltitudes)),'Location','Best')
+        legend(cellfun(@(x)['h = ',x,' km'],split(num2str(simAltitudes)),'UniformOutput',false),'Location','Best')
     else
         %...Plot aerodynamic coefficients in 2D for rarefied flow
         for i = 1:6
@@ -513,12 +513,13 @@ if showFigure
             end
             set(gca,'FontSize',15)
             grid on
+            altLabels = cellfun(@(x)['h = ',x,' km'],split(num2str(simAltRarefied(2:end))),'UniformOutput',false);
             if i == 1
-                legend(split(num2str(simAltRarefied(2:end))),'NumColumns',2,'Location','Best')
+                legend(altLabels,'NumColumns',2,'Location','Best')
             elseif i == 4 || i > 5
-                legend(split(num2str(simAltRarefied(2:end))),'Location','SW')
+                legend(altLabels,'Location','SW')
             else
-                legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
+                legend(altLabels,'Location','Best')
             end
             if saveFigure, saveas(F,['../../Report/figures/aero_rare_2d_',lower(labels{i})],'epsc'), end
         end
@@ -589,7 +590,7 @@ end
 %...Plot
 if showFigure
     styles = {'-o','-d','-s','-v','-p','-h','-*','-x','-^','-o','-d'};
-    labels = {'Drag','Side','Lift','X-Moment','Y-Moment','Z-Moment'};
+    labels = {'Drag','Side','Lift','Roll Moment','Pitch Moment','Yaw Moment'};
     
     %...Plot aerodynamic coefficients in 2D for rarefied flow
     for i = 1:6
@@ -604,10 +605,11 @@ if showFigure
         ylabel([labels{i},' Coefficient [-]'])
         set(gca,'FontSize',15)
         grid on
+        altLabels = cellfun(@(x)['h = ',x,' km'],split(num2str(simAltRarefied(2:end))),'UniformOutput',false);
         if i == 1 || i == 5
-            legend(split(num2str(simAltRarefied(2:end))),'NumColumns',2,'Location','Best')
+            legend(altLabels,'NumColumns',2,'Location','Best')
         else
-            legend(split(num2str(simAltRarefied(2:end))),'Location','Best')
+            legend(altLabels,'Location','Best')
         end
         if saveFigure, saveas(F,['../../Report/figures/aero_rare_ass_2d_',lower(labels{i})],'epsc'), end
     end

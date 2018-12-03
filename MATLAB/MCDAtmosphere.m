@@ -14,7 +14,7 @@ else, folder = 'MCD'; end
 
 genTable = false;
 showFigures = true;
-saveFigures = true;
+saveFigures = false;
 [figSizeLarge,figSizeMedium] = saveFigureSettings(saveFigures);
 
 %% Database Parameters
@@ -491,18 +491,18 @@ if fullDatabase
         yyaxis left
         hold on
         plot(hs,molarMassLatLonTimeAvg*1e3,'LineWidth',1.75)
-        plot([10,10^6],masses(3)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','--')
-        plot([10,10^6],masses(4)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','-.')
+        plot([10,10^6],masses(3)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle','-.')
+        plot([10,10^6],masses(4)*1e3*ones(1,2),'LineWidth',1.25,'LineStyle',':')
         hold off
         ylabel('Molar Mass [g mol^{-1}]')
         set(gca,'FontSize',17.5,'XScale','log')
         yyaxis right
-        plot(hs,abs(sum(gasRatio,2)-1),'LineWidth',1.75)
+        plot(hs,abs(sum(gasRatio,2)-1),'LineWidth',1.75,'LineStyle','--')
         ylabel('Offset in Gas Presence [-]')
-        set(gca,'FontSize',15,'XScale','log','YScale','log')
         xlabel('Altitude [km]')
         legend('Mars','CO_2','H','Offset','Location','Best')
         grid on
+        set(gca,'FontSize',17.5,'XScale','log','YScale','log')
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
         if ~saveFigures, title('Atmospheric Composition'),
         else, saveas(F,'../../Report/figures/mars_atm_mol','epsc'), end
@@ -513,12 +513,13 @@ if fullDatabase
         loglog(hs,numberDensity,'LineWidth',1.75)
         ylabel('Number Density [-]')
         yyaxis right
-        loglog(hs,knudsenNumber,'LineWidth',1.75)
+        loglog(hs,knudsenNumber,'LineWidth',1.75,'LineStyle','--')
         ylabel('Knudsen Number [-]')
         xlabel('Altitude [km]')
-        set(gca,'FontSize',17.5)
-        grid on
         xlim([hs_plot(1),hs_plot(end)]), xticks([50,100,250,500,1500])
+        legend('Molar Mass','Knudsen Number','Location','Best')
+        grid on
+        set(gca,'FontSize',17.5)
         if ~saveFigures, title('Number Density and Knudsen'),
         else, saveas(F,'../../Report/figures/mars_atm_num','epsc'), end
     end

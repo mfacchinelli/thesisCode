@@ -4,32 +4,39 @@ addpath functions
 %% Settings
 
 %...Figure settings
-showFigure = true;
-saveFigure = false;
-[figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigure);
+showFigures = false;
+saveFigures = false;
+[figSizeLarge,figSizeMedium,figSizeSmall] = saveFigureSettings(saveFigures);
 figSizeWideLAR = [150,150,1250,475]; % low aspect ratio
 figSizeWideHAR = [150,150,1250,400]; % high aspect ratio
 
 %...Constants
 marsRadius = 3389526.666666667;
 marsGravitationalParameter = 42828375815756.1;
-marsAtmosphericInterface = 175;
+marsAtmosphericInterface = 200;
 onboardAtmosphereModel = 0; % 0: exp, 1: wave, 2: 5-param
+spacecraftInertia = zeros(3,3);
+spacecraftInertia(1,1) = 5750.0;
+spacecraftInertia(2,2) = 1215.0;
+spacecraftInertia(3,3) = 5210.0;
 
 %...Output folder
 outputFolder = 'SimulationOutput';
+% outputFolder = [outputFolder,'/low'];
 % outputFolder = [outputFolder,'TransOnly'];
-% outputFolder = [outputFolder,'TransOnly/server/old_guidance'];
+outputFolder = [outputFolder,'TransOnly/full'];
+% outputFolder = [outputFolder,'TransOnly/server'];
 % outputFolder = [outputFolder,'TransOnlyReduced'];
-% outputFolder = [outputFolder,'TransGuidOnly'];
-outputFolder = [outputFolder,'TransOnlyIMAN/low_ecc'];
+% outputFolder = [outputFolder,'TransGuidOnly/no_sun'];
+% outputFolder = [outputFolder,'TransOnlyIMAN/high_ecc_double'];
 % outputFolder = [outputFolder,'TransOnlyIMANLoop/0-0--1/'];
-% outputFolder = [outputFolder,'TransOnlyIMANRMS/high_ecc/7/10'];
+% outputFolder = [outputFolder,'TransOnlyIMANRMS/high_ecc/6/100'];
 
 %...Plot settings
 loadRotational = false;
 loadDependent = true;
-loadFilter = true;
+loadEstimated = true;
+loadFilter = false;
 loadMeasurements = false;
 applyInterpolation = true;
 
@@ -39,9 +46,14 @@ timeLabel = 'Time [d]';
 CartesianLabels = {'x [km]','y [km]','z [km]','v_x [m s^{-1}]','v_y [m s^{-1}]','v_z [m s^{-1}]'};
 CartesianLabelsDifference = {'\Delta x [km]','\Delta y [km]','\Delta z [km]',...
     '\Delta v_x [m s^{-1}]','\Delta v_y [m s^{-1}]','\Delta v_z [m s^{-1}]'};
+CartesianLabelsAbsoluteDifference = {'|\Delta x| [km]','|\Delta y| [km]','|\Delta z| [km]',...
+    '|\Delta v_x| [m s^{-1}]','|\Delta v_y| [m s^{-1}]','|\Delta v_z| [m s^{-1}]'};
 KeplerianLabels = {'a [km]','e [-]','i [deg]','\omega [deg]','\Omega [deg]','\vartheta [deg]'};
+KeplerianLabelsDifference = {'\Delta a [km]','\Delta e [-]','\Delta i [deg]',...
+    '\Delta\omega [deg]','\Delta\Omega [deg]','\Delta\vartheta [deg]'};
 rotationLabels = {'\eta [-]','\epsilon_1 [-]','\epsilon_2 [-]','\epsilon_3 [-]','Norm Offset [-]',...
     '\omega_1 [deg s^{-1}]','\omega_2 [deg s^{-1}]','\omega_3 [deg s^{-1}]'};
+rotationLabelsDifference = {'\Delta\eta [-]','\Delta\epsilon_1 [-]','\Delta\epsilon_2 [-]','\Delta\epsilon_3 [-]'};
 
 %% Load C++ Results For Propagation
 
@@ -63,6 +75,9 @@ KeplerianPropagatedResults = KeplerianPropagatedResults{1}(:,2:end);
 KeplerianPropagatedResults(:,1) = KeplerianPropagatedResults(:,1) / 1e3;
 KeplerianPropagatedResults(:,3:end) = rad2deg(KeplerianPropagatedResults(:,3:end));
 fclose(fileID);
+
+locOmega = KeplerianPropagatedResults(:,4) > 180;
+KeplerianPropagatedResults(locOmega,4) = KeplerianPropagatedResults(locOmega,4) - 360;
 
 originalKeplerianPropagatedResults = KeplerianPropagatedResults; % create copy 
 
@@ -100,6 +115,11 @@ KeplerianEstimatedResults(:,1) = KeplerianEstimatedResults(:,1) / 1e3;
 KeplerianEstimatedResults(:,3:end) = rad2deg(KeplerianEstimatedResults(:,3:end));
 fclose(fileID);
 
+loc = diff(onboardTime) == 0;
+onboardTime(loc) = [];
+CartesianEstimatedResults(loc,:) = [];
+KeplerianEstimatedResults(loc,:) = [];
+
 %...Load rotational data
 if loadRotational
     %...Load rotational motion
@@ -128,6 +148,8 @@ clear filename fileID
 if loadFilter
     if contains(outputFolder,'IMAN')
         fliterLimit = 11;
+    elseif loadRotational
+        fliterLimit = 17;
     else
         fliterLimit = 10;
     end
@@ -147,37 +169,41 @@ if loadFilter
     fileID = fopen(filename,'r');
     filterCovarianceEstimatedResults = textscan(fileID,repmat('%f',[1,fliterLimit]),'Delimiter',',','CollectOutput',true);
     filterCovarianceEstimatedResults = filterCovarianceEstimatedResults{1}(:,2:end);
-    filterCovarianceEstimatedResults(:,1:3) = filterCovarianceEstimatedResults(:,1:3)/1e3;
+    filterCovarianceEstimatedResults(:,1:3) = filterCovarianceEstimatedResults(:,1:3)/1e3^2;
     fclose(fileID);
-    
-    %...Remove first entry
-    filterTime = filterTime(2:end);
-    filterStateEstimatedResults = filterStateEstimatedResults(2:end,:);
-    filterCovarianceEstimatedResults = filterCovarianceEstimatedResults(2:end,:);
     
     %...Clean up
     clear filename fileID
 end
 
 %% Load C++ Results For Dependent Variables
+    
+%...Load control torques
+if loadRotational
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/controlTorques.dat'];
+    fileID = fopen(filename,'r');
+    controlTorques = textscan(fileID,repmat('%f',[1,4]),'Delimiter',',','CollectOutput',true);
+    controlTorques = controlTorques{1}(:,2:end);
+    fclose(fileID);
+end
 
+%...Load dependent variables
 if loadDependent
-    %...Load dependent variables
     filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/dependentVariables.dat'];
     fileID = fopen(filename,'r');
-    dependentVariables = textscan(fileID,repmat('%f',[1,13]),'Delimiter',',','CollectOutput',true);
+    dependentVariables = textscan(fileID,repmat('%f',[1,16]),'Delimiter',',','CollectOutput',true);
     dependentVariables = dependentVariables{1}(:,2:end); dependentVariables(:,7:9) = rad2deg(dependentVariables(:,7:9));
     fclose(fileID);
     
-    %...Load control torques
-    if loadRotational && loadMeasurements
-        filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/controlTorques.dat'];
-        fileID = fopen(filename,'r');
-        controlTorques = textscan(fileID,repmat('%f',[1,4]),'Delimiter',',','CollectOutput',true);
-        controlTorques = controlTorques{1}(:,2:end);
-        fclose(fileID);
-    end
+%     locAlpha = dependentVariables(:,7) > 0 & simulationTime > 0.8;
+%     dependentVariables(locAlpha,7) = dependentVariables(locAlpha,7) - 360;
+    locSigma = dependentVariables(:,9) > 0;
+    dependentVariables(locSigma,9) = dependentVariables(locSigma,9) - 360;
+else
+    dependentVariables = NaN(length(simulationTime),12);
+end
 
+if loadEstimated
     %...Load periapsis corridors
     filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/periapsisCorridors.dat'];
     fileID = fopen(filename,'r');
@@ -200,11 +226,16 @@ if loadDependent
     atmosphericParameters = atmosphericParameters{1};
     fclose(fileID);
     
-    %...Clean up
-    clear filename fileID limit
-else
-    dependentVariables = NaN(length(simulationTime),12);
+    %...Load PTE estimates
+    filename = ['/Users/Michele/GitHub/tudat/tudatBundle/tudatApplications/Thesis/',outputFolder,'/pteEstimates.dat'];
+    fileID = fopen(filename,'r');
+    pteEstimates = textscan(fileID,repmat('%f',[1,7]),'Delimiter',',','CollectOutput',true);
+    pteEstimates = pteEstimates{1};
+    fclose(fileID);
 end
+    
+%...Clean up
+clear filename fileID limit
 
 %% Load C++ Results For Measurements
 
@@ -233,7 +264,7 @@ end
 %% Interpolate Results to Match Times
 
 %...Set interpolation time
-interpolatedTime = onboardTime;
+interpolatedTime = simulationTime;
 
 %...Interpolate
 if applyInterpolation
@@ -253,15 +284,22 @@ if applyInterpolation
     
     %..Interpolate filter results
     if loadFilter
+        %...Interpolate
         filterStateEstimatedResults = interp1( filterTime, filterStateEstimatedResults, interpolatedTime, 'linear', NaN );
         filterCovarianceEstimatedResults = interp1( filterTime, filterCovarianceEstimatedResults, ...
             interpolatedTime, 'linear', NaN );
+        
+        %...Add NaNs between non-filter moments
+        locAddNan = ~ismembertol(interpolatedTime,filterTime,2.5e-5);
+        filterStateEstimatedResults(locAddNan,:) = NaN;
+        filterCovarianceEstimatedResults(locAddNan,:) = NaN;
     end
     
     %...Interpolate other results
     if loadDependent
         dependentVariables = interp1( simulationTime, dependentVariables, interpolatedTime, 'linear' );
     end
+    
     if loadMeasurements
         accelerometerMeasurements = interp1( measurementTime, accelerometerMeasurements, interpolatedTime, 'linear' );
         expectedMeasurements = interp1( measurementTime, expectedMeasurements, interpolatedTime, 'linear' );
@@ -282,14 +320,14 @@ view([0,0])
 grid on
 axis equal tight
 set(gca,'FontSize',17.5)
-if saveFigure, saveas(F,'../../Report/figures/aero_traj','epsc'), end
+if saveFigures, saveas(F,'../../Report/figures/aero_traj','epsc'), end
 
 %% Plot Apses Altitudes
 
-if loadDependent
+if loadEstimated
     %...Retrieve apo- and periapses altitudes
     actualAltitude = sqrt( sum( CartesianPropagatedResults(:,1:3).^2, 2 ) ) - marsRadius/1e3;
-    actualApoapses = findpeaks(actualAltitude,'MinPeakProminence',100);
+    [actualApoapses,locActualApoapses] = findpeaks(actualAltitude,'MinPeakProminence',100);
     actualPeriapses = -findpeaks(-actualAltitude,'MinPeakProminence',100);
     
     estimatedAltitude = sqrt( sum( CartesianEstimatedResults(:,1:3).^2, 2 ) ) - marsRadius/1e3;
@@ -318,8 +356,9 @@ if loadDependent
         
         %...Analyze periapses
         periapsesLocs = 1:length(actualPeriapses);
-%         locFail = ( actualPeriapses < periapsisCorridors(1:end-2,2)/1e3 ) | ( actualPeriapses > periapsisCorridors(1:end-2,3)/1e3 );
-        locFail = ( actualPeriapses < periapsisCorridors(:,2)/1e3 ) | ( actualPeriapses > periapsisCorridors(:,3)/1e3 );
+        locFail = ( actualPeriapses < periapsisCorridors(1:end-2,2)/1e3 ) | ...
+            ( actualPeriapses > periapsisCorridors(1:end-2,3)/1e3 );
+%         locFail = ( actualPeriapses < periapsisCorridors(:,2)/1e3 ) | ( actualPeriapses > periapsisCorridors(:,3)/1e3 );
         periapsesLocsFail = periapsesLocs(locFail); actualPeriapsesFail = actualPeriapses(locFail);
         periapsesLocs(locFail) = []; actualPeriapses(locFail) = [];
         
@@ -336,6 +375,7 @@ if loadDependent
         hold off
         xlabel('Orbit Number [-]')
         ylabel('Altitude [km]')
+        xlim([0,210])
         set(gca,'FontSize',15)
         [~,icons] = legend('Actual','Estimated','Up Maneuver','Down Maneuver','Lower Bound','Upper Bound','Location','Best');
         for i = 1:14
@@ -344,7 +384,7 @@ if loadDependent
             end
         end
         grid on
-        if saveFigure
+        if saveFigures
             saveas(F,'../../Report/figures/aero_peri_corr_full','epsc')
             xlim([110,160])
             saveas(F,'../../Report/figures/aero_peri_corr_term','epsc')
@@ -352,12 +392,116 @@ if loadDependent
     end
 end
 
+%% Plot PTE Estimates
+
+if loadEstimated
+    modLocActualApoapses = [1;locActualApoapses];
+    
+    %...Find difference between semi-major axis and eccentricity between apoapses
+    semiMajorAxesPTE = KeplerianPropagatedResults(modLocActualApoapses+1,1);
+    eccentricitiesPTE = KeplerianPropagatedResults(modLocActualApoapses+1,2);
+    
+    diffSMAPTE = diff(semiMajorAxesPTE);
+    diffEccPTE = diff(eccentricitiesPTE);
+    
+    %...Verify
+    figure
+    subplot(1,2,1)
+    hold on
+    scatter(interpolatedTime(modLocActualApoapses+1),semiMajorAxesPTE)
+    plot(interpolatedTime,KeplerianPropagatedResults(:,1))
+    hold off
+    subplot(1,2,2)
+    hold on
+    scatter(interpolatedTime(modLocActualApoapses+1),eccentricitiesPTE)
+    plot(interpolatedTime,KeplerianPropagatedResults(:,2))
+    hold off
+    
+    %...Plot compared to PTE estimates
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    scatter(1:length(diffSMAPTE),-diffSMAPTE,50)
+    scatter(pteEstimates(1:end-1,1),-pteEstimates(1:end-1,2)/1e3,50,'s')
+    hold off
+    xlabel('Orbit Number [-]')
+    ylabel('- \Delta a [km]')
+    legend('Actual','Estimated','Location','Best')
+    set(gca,'FontSize',15,'YScale','log')
+    grid on
+    if saveFigures, saveas(F,'../../Report/figures/vv_pte_sma','epsc'), end
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    scatter(1:length(diffEccPTE),-diffEccPTE,50)
+    scatter(pteEstimates(1:end-1,1),-pteEstimates(1:end-1,3),50,'s')
+    hold off
+    xlabel('Orbit Number [-]')
+    ylabel('- \Delta e [-]')
+    legend('Actual','Estimated','Location','Best')
+    set(gca,'FontSize',15,'YScale','log')
+    grid on
+    if saveFigures, saveas(F,'../../Report/figures/vv_pte_ecc','epsc'), end    
+end
+
+%% Analyze Maneuvers
+
+if loadEstimated
+    reducedManeuver = apoapsisManeuver(1:end-2,:); % exclude termination and aerobraking complete phases
+    
+    locWalkIn = reducedManeuver(:,1) < 7;
+    locWalkOut = KeplerianEstimatedResults(modLocActualApoapses(reducedManeuver(:,1)+1),2) < 0.3;
+    locMain = ~locWalkIn & ~locWalkOut;
+    
+    walkInDV = sum(abs(reducedManeuver(locWalkIn,2)));
+    mainDV = sum(abs(reducedManeuver(locMain,2)));
+    walkOutDV = sum(abs(reducedManeuver(locWalkOut,2)));
+    terminationDV = sum(abs(apoapsisManeuver(end-1:end,2)));
+    totDV = sum(abs(apoapsisManeuver(:,2)));
+    DeltaVs = [walkInDV,mainDV,walkOutDV,terminationDV];
+    
+    table(walkInDV,mainDV,walkOutDV,terminationDV,totDV)
+    fprintf('\\num{%.2f} & \\num{%.2f} & \\num{%.1f} & \\num{%.1f} \\\\\n',DeltaVs)
+end
+
+%% Plot Target vs. Actual Periapsis
+
+if loadEstimated
+    %...Find periapses
+    [actualPeriapses,locActualPeriapses] = findpeaks(-actualAltitude,'MinPeakProminence',100);
+    actualPeriapses = -actualPeriapses;
+    
+    locTargerPeriapses = reducedManeuver(:,1)+1;
+    actualTargetedPeriapses = actualPeriapses(locTargerPeriapses);
+    targetPeriapses = mean(periapsisCorridors(locTargerPeriapses,2:3),2)/1e3;
+    
+    %...Plot target vs actual
+    F = figure('rend','painters','pos',figSizeWideHAR);
+    hold on
+    scatter(reducedManeuver(:,1)+1,actualTargetedPeriapses,50)
+    scatter(reducedManeuver(:,1)+1,targetPeriapses,50,'s')
+    plot(periapsisCorridors(2:end,1),periapsisCorridors(1:end-1,2)/1e3,'LineWidth',1.25,'LineStyle','--')
+    plot(periapsisCorridors(2:end,1),periapsisCorridors(1:end-1,3)/1e3,'LineWidth',1.25,'LineStyle','-.')
+    hold off
+    xlabel('Orbit Number [-]')
+    ylabel('Altitude [km]')
+    legend('Actual','Target','Lower Bound','Upper Bound','Location','Best')
+    set(gca,'FontSize',15)
+    grid on
+    if saveFigures, saveas(F,'../../Report/figures/vv_me','epsc'), end 
+end
+
 %% Plot Densities
 
-if loadDependent
+if loadEstimated
     %...Find maximum density places
     [maximumDensityPerOrbit,locMaxDens] = findpeaks(dependentVariables(:,10),'MinPeakHeight',1.0e-10);
     estimatedMaxDensity = zeros(size(atmosphericParameters,1),1);
+    meanEstMaxDensity = zeros(size(atmosphericParameters,1),1);
+    
+    %...Moving average
+    meanAP = [smooth(atmosphericParameters(:,2),7),smooth(atmosphericParameters(:,3),7),...
+        smooth(atmosphericParameters(:,4),7)];
+    mean_dens_func = @(i,h) meanAP(i,2) * exp( - ( h*1e3 - meanAP(i,1) ) / meanAP(i,3) );
     
     %...Plot real and estimated densities
     figure
@@ -376,6 +520,7 @@ if loadDependent
                 x(6) * sin( 2*pi*( ( h*1e3 - x(1) ) / x(3) ) ) );
         end
         estimatedMaxDensity(i) = dens_func(actualAltitude(locMaxDens(i)));
+        meanEstMaxDensity(i) = mean_dens_func(i,actualAltitude(locMaxDens(i)));
         plot(dens_func(reducedAltitude),reducedAltitude,'LineWidth',1.25)
     end
     hold off
@@ -389,53 +534,35 @@ if loadDependent
     F = figure('rend','painters','pos',figSizeSmall);
     hold on
     scatter((1:length(maximumDensityPerOrbit)),maximumDensityPerOrbit,50)
-    scatter(atmosphericParameters(:,1),estimatedMaxDensity,50,'s')    
+    scatter(atmosphericParameters(:,1),estimatedMaxDensity,50,'s') 
+    scatter(atmosphericParameters(:,1),meanEstMaxDensity,50,'^')
     hold off
     xlabel('Orbit Number [-]')
     ylabel('Density [kg m^{-3}]')
-    legend('Actual','Estimated','Location','Best')
+    legend('Actual','Estimated','Moving Average','Location','Best')
     set(gca,'FontSize',15,'YScale','log')
     grid on
-    if saveFigure, saveas(F,'../../Report/figures/aero_peak_dens','epsc'), end
-end
-
-%% Compare with V&V
-
-%...Find estimated periapsis
-offset = 2000;
-locEstPeriapsis = find(KeplerianEstimatedResults(:,6) < 1e-2,1);
-locEstPeriapsis = locEstPeriapsis-offset:locEstPeriapsis+offset;
-periapsisCenteredTime = interpolatedTime(locEstPeriapsis) * timeConversion;
-periapsisCenteredTime = periapsisCenteredTime - periapsisCenteredTime(1);
-
-%...Plot Keplerian translational motion
-F = figure('rend','painters','pos',figSizeLarge);
-for i = 1:size(CartesianPropagatedResults,2)
-    subplot(2,3,i)
+    if saveFigures, saveas(F,'../../Report/figures/aero_peak_dens','epsc'), end
+    
+    densityOffset = (meanEstMaxDensity-maximumDensityPerOrbit)./maximumDensityPerOrbit*100;
+    
+    F = figure('rend','painters','pos',figSizeSmall);
     hold on
-    plot(periapsisCenteredTime,CartesianPropagatedResults(locEstPeriapsis,i),'LineWidth',1.25)
-    plot(periapsisCenteredTime,CartesianEstimatedResults(locEstPeriapsis,i),'LineWidth',1.25)
+    scatter((1:length(maximumDensityPerOrbit)),densityOffset,50)
     hold off
-    xlabel('Time [s]')
-    ylabel(CartesianLabels{i})
+    xlabel('Orbit Number [-]')
+    ylabel('Offset [%]')
     set(gca,'FontSize',15)
     grid on
+%     if saveFigure, saveas(F,'../../Report/figures/aero_peak_dens','epsc'), end
+    
+    minDensityError = min((estimatedMaxDensity-maximumDensityPerOrbit)./maximumDensityPerOrbit*100);
+    maxDensityError = max((estimatedMaxDensity-maximumDensityPerOrbit)./maximumDensityPerOrbit*100);
+    table(minDensityError,maxDensityError)
+    
+    meanMinDensityError = min((meanEstMaxDensity-maximumDensityPerOrbit)./maximumDensityPerOrbit*100);
+    meanMaxDensityError = max((meanEstMaxDensity-maximumDensityPerOrbit)./maximumDensityPerOrbit*100);
 end
-subplotLegend({'Actual','Estimated'})
-
-F = figure('rend','painters','pos',figSizeLarge);
-for i = 1:size(KeplerianPropagatedResults,2)
-    subplot(2,3,i)
-    hold on
-    plot(periapsisCenteredTime,KeplerianPropagatedResults(locEstPeriapsis,i),'LineWidth',1.25)
-    plot(periapsisCenteredTime,KeplerianEstimatedResults(locEstPeriapsis,i),'LineWidth',1.25)
-    hold off
-    xlabel('Time [s]')
-    ylabel(KeplerianLabels{i})
-    set(gca,'FontSize',15)
-    grid on
-end
-subplotLegend({'Actual','Estimated'})
 
 %% RMS Error
 
@@ -446,13 +573,35 @@ rmsVelocityError = rms( rssq(CartesianEstimatedResults(:,4:6),2) - rssq(Cartesia
 %...Show errors
 table(rmsPositionError,rmsVelocityError)
 
-%...Compute STD of error in position and velocity
+%...Compute STD of error in position and velocity for aided navigation
 locTime = interpolatedTime < 0.5;
-stdErrorPosition = std( CartesianEstimatedResults(locTime,1:3) - CartesianPropagatedResults(locTime,1:3) ) * 1e3;
-stdErrorVelocity = std( CartesianEstimatedResults(locTime,4:6) - CartesianPropagatedResults(locTime,4:6) );
+stdErrorPositionAided = std( rssq(CartesianEstimatedResults(locTime,1:3),2) - ...
+    rssq(CartesianPropagatedResults(locTime,1:3),2) ) * 1e3;
+stdErrorVelocityAided = std( rssq(CartesianEstimatedResults(locTime,4:6),2) - ...
+    rssq(CartesianPropagatedResults(locTime,4:6),2) );
+% stdErrorPositionAided = std( CartesianEstimatedResults(locTime,1:3) - CartesianPropagatedResults(locTime,1:3) ) * 1e3;
+% stdErrorVelocityAided = std( CartesianEstimatedResults(locTime,4:6) - CartesianPropagatedResults(locTime,4:6) );
 
 %...Show errors
-table(stdErrorPosition,stdErrorVelocity)
+table(stdErrorPositionAided,stdErrorVelocityAided)
+
+%...Compute STD of error in position and velocity for unaided navigation
+locTime = ( interpolatedTime > 0.5448 & interpolatedTime < 0.6872 ) | ...
+    ( interpolatedTime > 0.7822 & interpolatedTime < 0.9236 );
+stdErrorPositionUnaided = std( rssq(CartesianEstimatedResults(locTime,1:3),2) - ...
+    rssq(CartesianPropagatedResults(locTime,1:3),2) ) * 1e3;
+stdErrorVelocityUnaided = std( rssq(CartesianEstimatedResults(locTime,4:6),2) - ...
+    rssq(CartesianPropagatedResults(locTime,4:6),2) );
+
+%...Show errors
+table(stdErrorPositionUnaided,stdErrorVelocityUnaided)
+
+%...Rotational velocity and angular momentum
+if loadRotational
+    angularMomentum = spacecraftInertia * deg2rad(rotationalPropagatedResults(:,6:8))';
+    maxAngularMomentum = max(max(angularMomentum,[],2));
+    table(maxAngularMomentum)
+end
 
 %% Plot States Over Time
 
@@ -497,27 +646,29 @@ for i = 1:size(KeplerianPropagatedResults,2)
 end
 subplotLegend({'Actual','Estimated'})
 
-F = figure('rend','painters','pos',figSizeWideHAR);
-for i = 1:2
-    subplot(1,2,i)
-    plot(interpolatedTime,KeplerianPropagatedResults(:,i),'LineWidth',1.5)
-    xlabel(timeLabel)
-    ylabel(KeplerianLabels{i})
-    set(gca,'FontSize',16.5)
-    grid on
+if saveFigures
+    F = figure('rend','painters','pos',figSizeWideHAR);
+    for i = 1:2
+        subplot(1,2,i)
+        plot(interpolatedTime,KeplerianPropagatedResults(:,i),'LineWidth',1.5)
+        xlabel(timeLabel)
+        ylabel(KeplerianLabels{i})
+        set(gca,'FontSize',16.5)
+        grid on
+    end
+    if saveFigures, saveas(F,'../../Report/figures/aero_kepl_ae','epsc'), end
+    
+    F = figure('rend','painters','pos',figSizeWideHAR);
+    for i = 3:5
+        subplot(1,3,i-2)
+        plot(interpolatedTime,KeplerianPropagatedResults(:,i),'LineWidth',1.5)
+        xlabel(timeLabel)
+        ylabel(KeplerianLabels{i})
+        set(gca,'FontSize',16.5)
+        grid on
+    end
+    if saveFigures, saveas(F,'../../Report/figures/aero_kepl_iOo','epsc'), end
 end
-if saveFigure, saveas(F,'../../Report/figures/aero_kepl_ae','epsc'), end
-
-F = figure('rend','painters','pos',figSizeWideHAR);
-for i = 3:5
-    subplot(1,3,i-2)
-    plot(interpolatedTime,KeplerianPropagatedResults(:,i),'LineWidth',1.5)
-    xlabel(timeLabel)
-    ylabel(KeplerianLabels{i})
-    set(gca,'FontSize',16.5)
-    grid on
-end
-if saveFigure, saveas(F,'../../Report/figures/aero_kepl_iOo','epsc'), end
 
 %...Plot error in Keplerian translational motion
 F = figure('rend','painters','pos',figSizeLarge);
@@ -539,7 +690,7 @@ if loadRotational
         plot(interpolatedTime,rotationalPropagatedResults(:,i),'LineWidth',1.25)
         plot(interpolatedTime,rotationalEstimatedResults(:,i),'LineWidth',1.25)
         if i < 5
-            plot([interpolatedTime(1),interpolatedTime(end)],commandedQuaternions(:,i+1)*ones(1,2),...
+            plot([interpolatedTime(1),interpolatedTime(end)],commandedQuaternions(1,i+1)*ones(1,2),...
                 'LineWidth',1.25,'LineStyle','--')
         end
         hold off
@@ -548,7 +699,32 @@ if loadRotational
         set(gca,'FontSize',15)
         grid on
     end
-    subplotLegend({'Actual','Estimated'})
+    subplotLegend({'Actual','Estimated','Commanded'})
+end
+
+if loadRotational && saveFigures
+    F = figure('rend','painters','pos',figSizeSmall);
+    for i = 1:4
+        subplot(2,2,i)
+        plot(interpolatedTime,rotationalPropagatedResults(:,i)-commandedQuaternions(1,i+1),'LineWidth',1.25)
+%         plot(interpolatedTime,rotationalEstimatedResults(:,i)-rotationalPropagatedResults(:,i),'LineWidth',1.25)
+        xlabel(timeLabel)
+        ylabel(rotationLabelsDifference{i})
+        set(gca,'FontSize',15)
+        grid on
+    end
+    if saveFigures, saveas(F,'../../Report/figures/aero_rot_diff','epsc'), end
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    for i = 1:3
+        subplot(3,1,i)
+        plot(interpolatedTime,rotationalPropagatedResults(:,i+5),'LineWidth',1.25)
+        xlabel(timeLabel)
+        ylabel(rotationLabels{i+5})
+        set(gca,'FontSize',15)
+        grid on
+    end
+    if saveFigures, saveas(F,'../../Report/figures/aero_rot_vel','epsc'), end
 end
 
 %% Plot Peri- and Apoapsis During Aerobraking
@@ -576,16 +752,16 @@ ylabel('Altitude [km]')
 legend('Apoapsis','Periapsis','Altitude','DAIA','Location','Best')
 grid on
 set(gca,'FontSize',15,'YScale','log')
-if saveFigure, saveas(F,'../../Report/figures/aero_apo_peri','epsc'), end
+if saveFigures, saveas(F,'../../Report/figures/aero_apo_peri','epsc'), end
 
-%% Plot Peri- and Apoapsis During Aerobraking
+%% Plot Peri- and Apoapsis After Aerobraking
 
-loc = ( simulationTime > ( interpolatedTime(end) - 0.04058 ) ) & ( simulationTime < interpolatedTime(end) );
-if any(loc)
-    stableTime = simulationTime(loc); 
+locStable = ( simulationTime > ( interpolatedTime(end) - 0.0385 ) ) & ( simulationTime < interpolatedTime(end) );
+if any(locStable)
+    stableTime = simulationTime(locStable); 
     initialStableTime = stableTime(1);
     stableTime = stableTime - initialStableTime;
-    stableKeplerianElements = originalKeplerianPropagatedResults(loc,:);
+    stableKeplerianElements = originalKeplerianPropagatedResults(locStable,:);
     
     %...Compute apsis altitudes
     stableApoapsisAltitude = stableKeplerianElements(:,1) .* ...
@@ -614,7 +790,7 @@ if any(loc)
     legend('Apoapsis','Periapsis','Altitude','DAIA','Location','Best')
     grid on
     set(gca,'FontSize',15,'YScale','log')
-    if saveFigure, saveas(F,'../../Report/figures/aero_apo_peri_stable','epsc'), end
+    if saveFigures, saveas(F,'../../Report/figures/aero_apo_peri_stable','epsc'), end
     
     F = figure('rend','painters','pos',figSizeLarge);
     for i = 1:size(KeplerianPropagatedResults,2)
@@ -627,7 +803,8 @@ if any(loc)
     end
     
     %...Mean elements
-    stableKeplerianElements(stableKeplerianElements(:,4)>180,4) = stableKeplerianElements(stableKeplerianElements(:,4)>180,4) - 360;
+    stableKeplerianElements(stableKeplerianElements(:,4)>180,4) = ...
+        stableKeplerianElements(stableKeplerianElements(:,4)>180,4) - 360;
     mean([stableKeplerianElements(:,1:5),stableApoapsisAltitude,stablePeriapsisAltitude])
     
     %...Offset
@@ -638,34 +815,142 @@ end
 %% Plot Filter States
 
 %...Only if filtering is toggled
+saveIMAN = false;
+saveRot = false;
 if loadFilter
+    plotFreq = 1;
+    if saveRot, plotFreq = 10; end
+    
     %...Plot Cartesian translational motion
     F = figure('rend','painters','pos',figSizeLarge);
     for i = 1:6
         subplot(2,3,i)
         hold on
-        plot(interpolatedTime,filterStateEstimatedResults(:,i)-CartesianPropagatedResults(:,i),'LineWidth',1.25)
-        plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
-        plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
+        if saveIMAN
+            plot(interpolatedTime(1:plotFreq:end),abs(filterStateEstimatedResults(1:plotFreq:end,i)-...
+                CartesianPropagatedResults(1:plotFreq:end,i)),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+        else
+            plot(interpolatedTime(1:plotFreq:end),filterStateEstimatedResults(1:plotFreq:end,i)-...
+                CartesianPropagatedResults(1:plotFreq:end,i),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+            plot(interpolatedTime(3:plotFreq:end),-sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--','Color',[0.85,0.325,0.098])
+        end
         hold off
         xlabel(timeLabel)
-        set(gca,'FontSize',15)
+        if saveIMAN
+            ylabel(CartesianLabelsAbsoluteDifference{i})
+        else
+            ylabel(CartesianLabelsDifference{i})
+        end
+        if saveIMAN
+            set(gca,'FontSize',15,'YScale','log')
+        else
+            set(gca,'FontSize',15)
+        end
         grid on
     end
+    subplotLegend({'Difference','STD'})
+    if ( saveFigures && saveIMAN ), saveas(F,'../../Report/figures/aero_filt_cart','epsc'),
+    elseif ( saveFigures && saveRot ), saveas(F,'../../Report/figures/aero_withrot_cart','epsc'), end
     
     %...Plot instrument errors
-    actual = [-0.000123974  5.23187e-06   9.7221e-06];
-    F = figure('rend','painters','pos',figSizeLarge);
+    actual = [0.0001239735903658918  5.231874102765194e-06   9.72210316125009e-06];
+    F = figure('rend','painters','pos',figSizeMedium);
     for i = 7:9
         subplot(1,3,i-6)
         hold on
-        plot(interpolatedTime,filterStateEstimatedResults(:,i)-actual(i-6),'LineWidth',1.25)
-        plot(interpolatedTime(2:end),sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
-        plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
+        if saveIMAN
+            plot(interpolatedTime(1:plotFreq:end),abs(filterStateEstimatedResults(1:plotFreq:end,i)-actual(i-6)),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+        else
+            plot(interpolatedTime(1:plotFreq:end),filterStateEstimatedResults(1:plotFreq:end,i)-actual(i-6),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+            plot(interpolatedTime(3:plotFreq:end),-sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--','Color',[0.85,0.325,0.098])
+        end
         hold off
         xlabel(timeLabel)
-        set(gca,'FontSize',15)
+        if saveIMAN
+            ylabel(['|\Delta b_{t,',num2str(i-6),'}| [-]'])
+        else
+            ylabel(['\Delta b_{t,',num2str(i-6),'} [-]'])
+        end
+        if saveIMAN
+            set(gca,'FontSize',15,'YScale','log')
+        else
+            set(gca,'FontSize',15)
+        end
         grid on
+    end
+    
+    %...Plot drag coefficient
+    if contains(outputFolder,'IMAN')
+        actual = 1.9;
+        F = figure('rend','painters','pos',figSizeSmall);
+        hold on
+        plot(interpolatedTime(1:plotFreq:end),abs(filterStateEstimatedResults(1:plotFreq:end,10)-actual),'LineWidth',1.25)
+        plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,10)),...
+            'LineWidth',1.25,'LineStyle','--')
+        %         plot(interpolatedTime(2:end),-sqrt(filterCovarianceEstimatedResults(2:end,i)),'LineWidth',1.25,'LineStyle','--')
+        hold off
+        xlabel(timeLabel)
+        ylabel('|\Delta C_D| [-]')
+        ylim([1e-5,1e10])
+        legend('Difference','STD','Location','Best')
+        set(gca,'FontSize',15,'YScale','log')
+        grid on
+        if ( saveFigures && saveIMAN ), saveas(F,'../../Report/figures/aero_filt_cd','epsc'), end
+    end
+    
+    %...Plot rotational motion
+    if loadRotational
+        %...Plot quaternions
+        F = figure('rend','painters','pos',figSizeLarge);
+        for i = 10:13
+            subplot(2,2,i-9)
+            hold on
+            plot(interpolatedTime(1:plotFreq:end),filterStateEstimatedResults(1:plotFreq:end,i)-...
+                rotationalPropagatedResults(1:plotFreq:end,i-9),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+            plot(interpolatedTime(3:plotFreq:end),-sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--','Color',[0.85,0.325,0.098])
+            hold off
+            xlabel(timeLabel)
+            ylabel(rotationLabelsDifference{i-9})
+            set(gca,'FontSize',15)
+            grid on
+        end
+        subplotLegend({'Difference','STD'})
+        if ( saveFigures && saveRot ), saveas(F,'../../Report/figures/aero_withrot_rot','epsc'), end
+        
+        %...Plot instrument errors
+        actual = [8.060047168656996e-09  1.998853308544197e-09 -1.143908123010419e-09];
+        F = figure('rend','painters','pos',figSizeMedium);
+        for i = 14:16
+            subplot(1,3,i-13)
+            hold on
+            plot(interpolatedTime(1:plotFreq:end),filterStateEstimatedResults(1:plotFreq:end,i)-actual(i-13),'LineWidth',1.25)
+            plot(interpolatedTime(3:plotFreq:end),sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--')
+            plot(interpolatedTime(3:plotFreq:end),-sqrt(filterCovarianceEstimatedResults(3:plotFreq:end,i)),...
+                'LineWidth',1.25,'LineStyle','--','Color',[0.85,0.325,0.098])
+            hold off
+            xlabel(timeLabel)
+            ylabel(['\Delta b_{r,',num2str(i-13),'} [-]'])
+            if saveIMAN
+                set(gca,'FontSize',15,'YScale','log')
+            else
+                set(gca,'FontSize',15)
+            end
+            grid on
+        end
     end
 end
 
@@ -679,7 +964,7 @@ if loadMeasurements && loadDependent
     if loadRotational, subplot(1,2,1), end
     hold on
     for i = 1:3
-        plot(interpolatedTime,accelerometerMeasurements(:,i),'LineWidth',1.0)
+        scatter(interpolatedTime,accelerometerMeasurements(:,i))
         plot(interpolatedTime,smooth(accelerometerMeasurements(:,i),50),'LineWidth',1.25)
         plot(interpolatedTime,expectedMeasurements(:,i),'LineWidth',1.25,'LineStyle','--')
         plot(interpolatedTime,dependentVariables(:,i+3),'LineWidth',1.25,'LineStyle',':')
@@ -695,7 +980,7 @@ if loadMeasurements && loadDependent
     
     if loadRotational
         subplot(1,2,2)
-        plot(interpolatedTime,accelerometerMeasurements(:,4:6),'LineWidth',1.25)
+        scatter(interpolatedTime,accelerometerMeasurements(:,4:6),'LineWidth',1.25)
         hold off
         xlabel(timeLabel)
         ylabel('Rotational Velocity [rad s^{-1}]')
@@ -706,25 +991,58 @@ if loadMeasurements && loadDependent
 end
 
 %...Plot control torques
-if loadRotational && loadMeasurements
-    figure;
-    plot(simulationTime,controlTorques(:,1:3),'LineWidth',1.25)
+if loadRotational
+    names = {'x_B','y_B','z_B'};
+    styles = {'--','-','-.'};
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    for i = 1:3
+        plot(onboardTime,controlTorques(:,i),'LineWidth',1.25,'LineStyle',styles{i})
+    end
+    hold off
     xlabel(timeLabel)
-    ylabel('Control Torque [N m]')
+    ylabel('Torque [N m]')
     set(gca,'FontSize',15)
     grid on
-    legend('x','y','z','Location','Best')
+    legend(names{:},'Location','Best')
 end
 
 %...Plot aerodynamic angles
-if loadDependent
-    figure;
-    plot(interpolatedTime,dependentVariables(:,7:9),'LineWidth',1.25)
+if loadDependent && loadRotational
+    styles = {'-','--','-.'};
+    aeroAngles = dependentVariables(:,7:9);
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    for i = 1:3
+        plot(interpolatedTime,aeroAngles(:,i),'LineWidth',1.25,'LineStyle',styles{i})
+    end
+    hold off
     xlabel(timeLabel)
-    ylabel('Angle [deg]')
+    ylabel('Aerodynamic Angle [deg]')
     set(gca,'FontSize',15)
     grid on
     legend('Attack','Side-slip','Bank','Location','Best')
+    if saveFigures, saveas(F,'../../Report/figures/aero_angles','epsc'), end
+end
+
+%...Plot aerodynamic coefficients
+if loadDependent && loadRotational
+    styles = {'-','--','-.'};
+    aeroCoeff = dependentVariables(:,13:15);
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    for i = 1:3
+        plot(interpolatedTime,aeroCoeff(:,i),'LineWidth',1.25,'LineStyle',styles{i})
+    end
+    hold off
+    xlabel(timeLabel)
+    ylabel('Aerodynamic Coefficient [-]')
+    set(gca,'FontSize',15)
+    grid on
+    legend('Drag','Side','Lift','Location','Best')
 end
 
 % %...Plot aerodynamic acceleration
@@ -784,30 +1102,35 @@ if loadDependent
     plot(xlim,[0.19,0.19],'LineWidth',1.25,'LineStyle','--')
     hold off
     xlabel('Orbit Number [-]')
-    ylabel('Dynamic Pressure [kg m^{-2}]')
+    ylabel('Dynamic Pressure [N m^{-2}]')
     legend('Dyn. Press.','Min. Dyn. Press.','Location','NE')
     set(gca,'FontSize',15)
     grid on
-    if saveFigure, saveas(F,'../../Report/figures/aero_press_cond','epsc'), end
+    if saveFigures, saveas(F,'../../Report/figures/aero_press_cond','epsc'), end
     
     F = figure('rend','painters','pos',figSizeSmall);
-    yyaxis left
     hold on
     scatter(1:length(maximumHeatRate),maximumHeatRate,50)
     plot(xlim,[2800,2800],'LineWidth',1.25,'LineStyle','--')
     hold off
-    ylabel('Heat Rate [W m^{-2}]')
-    yyaxis right
-    hold on
-    scatter(1:length(maximumHeatLoad),maximumHeatLoad,50,'s')
-    plot(xlim,[500,500],'LineWidth',1.25,'LineStyle','-.')
-    hold off
-    ylabel('Heat Load [kJ m^{-2}]')
     xlabel('Orbit Number [-]')
-    legend('Heat Rate','Max. Heat Rate','Heat Load','Max. Heat Load','Location',[0.35,0.15,0.245,0.165])
+    ylabel('Heat Rate [W m^{-2}]')
+    legend('Heat Rate','Max. Heat Rate','Location','Best')
     set(gca,'FontSize',15)
     grid on
-    if saveFigure, saveas(F,'../../Report/figures/aero_heat_cond','epsc'), end
+    if saveFigures, saveas(F,'../../Report/figures/aero_heat_rate','epsc'), end
+    
+    F = figure('rend','painters','pos',figSizeSmall);
+    hold on
+    scatter(1:length(maximumHeatLoad),maximumHeatLoad,50)
+    plot(xlim,[500,500],'LineWidth',1.25,'LineStyle','--')
+    hold off
+    xlabel('Orbit Number [-]')
+    ylabel('Heat Load [kJ m^{-2}]')
+    legend('Heat Load','Max. Heat Load','Location','Best')
+    set(gca,'FontSize',15)
+    grid on
+    if saveFigures, saveas(F,'../../Report/figures/aero_heat_load','epsc'), end
 end
 
 %% Plot Density
@@ -851,12 +1174,12 @@ if loadMeasurements
     grid on
     legend('Noisy','Ideal','Reduced Interface','Location','NE')
     set(gca,'FontSize',15,'YScale','log')
-    if saveFigure, saveas(F,'../../Report/figures/imu_acc_raia','epsc'), end
+    if saveFigures, saveas(F,'../../Report/figures/imu_acc_raia','epsc'), end
 end
 
 %% Plot Aerobraking Evolution
 
-if saveFigure && strcmp(outputFolder,'SimulationOutputTransGuidOnly/')
+if saveFigures && strcmp(outputFolder,'SimulationOutputTransGuidOnly/')
     %...Determine change in apoapsis altitude drop rate
     altitudes = sqrt(sum(CartesianPropagatedResults(:,1:3).^2,2)) - marsRadius/1e3;
     [apoapsesAltitudes,apoapsesLocs] = findpeaks(altitudes);
@@ -891,5 +1214,5 @@ end
 
 %% Clean Up
 
-if ~showFigure, close all, end
-if saveFigure, close all, end
+if ~showFigures, close all, end
+if saveFigures, close all, end

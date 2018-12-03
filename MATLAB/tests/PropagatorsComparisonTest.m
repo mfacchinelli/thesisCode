@@ -466,7 +466,7 @@ xlabel('Computation Time [s]')
 ylabel('RMS Position Error [m]')
 legend(propagatorNames(1:end-1),'Location','Best')
 set(gca,'FontSize',15,'YScale','log')
-if testCase == 2
+if testCase == 1 || testCase == 2
     set(gca,'XScale','log')
 end
 grid on

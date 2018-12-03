@@ -29,6 +29,9 @@ CStab = permute(CStab,P);
 Cltab = permute(Cltab,P);
 Cmtab = permute(Cmtab,P);
 Cntab = permute(Cntab,P);
+atmos = load('data/MCDMeanAtmosphere');
+atmTab = squeeze(mean(mean(atmos.tabular_interp,1),2));
+dens = [atmos.hs_interp',atmTab(:,1)];
 %
 % Define constant vehicle parameters.
 %
@@ -45,17 +48,19 @@ bref = dref;
 Sref = 37.5;
 ch1  = 0.005;
 ch2  = 0.05;
-Txmax = 500;
-Tymax = 1000;
-Tzmax = 1000;
+Txmax = 22; % 22 N is max thrust
+Tymax = 22;
+Tzmax = 22;
 %
-h       = 3389526.666666667 + 110e3;
-V       = sqrt( 42828375815756.1 / h );
+h       = 40e6;%115e3;%
+r       = 3389526.666666667 + h;
+V       = sqrt( 42828375815756.1 / r );
 L       = 0.0;
-qdyn    = 0.5 * 1e-7 * V^2;
+rho     = interp1(dens(:,1),dens(:,2),h/1e3,'spline');
+qdyn    = 0.5 * rho * V^2;
 D       = qdyn * 1.9 * Sref;
 Mach    = V / 180;
-g       = sqrt( L^2 + D^2 )/m;
+g       = sqrt( L^2 + D^2 ) / m;
 mV      = m * V;
 mV2     = mV * V;
 qS      = qdyn * Sref;
@@ -66,7 +71,7 @@ cgamma  = cos(gamma);
 sgamma  = sin(gamma);
 tgamma  = tan(gamma);
 chi     = pi/2;
-alpha   = degrad * 0.0;
+alpha   = degrad * -180.0;
 calpha  = cos(alpha);
 salpha  = sin(alpha);
 beta    = 0;
@@ -92,8 +97,8 @@ calpha1 = cos(alpha1);
 alpha2  = alpha + 1*degrad;
 salpha2 = sin(alpha2);
 calpha2 = cos(alpha2);
-Mach1   = min(0.95*Mach,Machtab(end));
-Mach2   = min(1.05*Mach,Machtab(end));
+Mach1   = min(0.95*Mach,max(max(max(Machtab))));
+Mach2   = min(1.05*Mach,max(max(max(Machtab))));
 if ((Mach2-Mach1) < 1e-10), Mach1 = 0.95*Mach2; end
 %
 % Mach
@@ -159,17 +164,17 @@ Amp = [[a11 a12]
 %
 dq     = 1.5*degrad;
 dalpha = 1*degrad;
-dp     = 1.5*pi/180;
-dsigma = 4*pi/180;
-dr     = 1.5*pi/180;
-dbeta  = 1*pi/180;
+dp     = 1.5*degrad;
+dsigma = 4*degrad;
+dr     = 1.5*degrad;
+dbeta  = 1*degrad;
 
 dq     = 2*degrad;
 dalpha = 1*degrad;
-dp     = 2*pi/180;
-dsigma = 3*pi/180;
-dr     = 2*pi/180;
-dbeta  = 2*pi/180;
+dp     = 2*degrad;
+dsigma = 3*degrad;
+dr     = 2*degrad;
+dbeta  = 2*degrad;
 %
 % Compute gains for reaction control only.
 %
